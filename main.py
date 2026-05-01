@@ -138,6 +138,60 @@ class PolymarketDB:
         conn.close()
         logger.success(f"נשמרו {len(markets)} שווקים ב-polymarket.db")
 
+        # שמור גם ב-Supabase אם מוגדר
+        cls._save_to_supabase(markets)
+
+    @classmethod
+    def _save_to_supabase(cls, markets: list[dict]) -> None:
+        import urllib.request, urllib.parse, os
+        from datetime import datetime, timezone
+        url = os.getenv("SUPABASE_URL", "").strip()
+        key = os.getenv("SUPABASE_KEY", "").strip()
+        if not url or not key:
+            # נסה לטעון מ-.env
+            try:
+                from dotenv import load_dotenv
+                load_dotenv()
+                url = os.getenv("SUPABASE_URL", "").strip()
+                key = os.getenv("SUPABASE_KEY", "").strip()
+            except Exception:
+                pass
+        if not url or not key:
+            return
+
+        now = datetime.now(timezone.utc).isoformat()
+        rows = [{
+            "id":         m["id"],
+            "title":      m["title"],
+            "volume":     m["volume"],
+            "confidence": m["confidence"],
+            "yes_pct":    m["yes_pct"],
+            "no_pct":     m["no_pct"],
+            "end_date":   m["end_date"],
+            "data":       json.dumps(m, ensure_ascii=False),
+            "fetched_at": now,
+        } for m in markets]
+
+        # שלח ב-batches של 100
+        headers = {
+            "apikey": key, "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates,return=minimal",
+        }
+        for i in range(0, len(rows), 100):
+            batch = rows[i:i+100]
+            data  = json.dumps(batch).encode()
+            req   = urllib.request.Request(
+                f"{url}/rest/v1/markets", data=data,
+                headers=headers, method="POST"
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=10):
+                    pass
+            except Exception as e:
+                logger.warning(f"Supabase upload batch {i//100}: {e}")
+        logger.success(f"✅ {len(markets)} שווקים עודכנו ב-Supabase")
+
 
 # ── Fetch & Analyse ───────────────────────────────────────────────────────────
 
