@@ -228,6 +228,29 @@ DB_PATH = "polymarket.db"
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_markets() -> pd.DataFrame:
+    # Supabase (ענן)
+    try:
+        import urllib.request, urllib.parse, json as _j
+        supa_url = st.secrets.get("SUPABASE_URL", "") or ""
+        supa_key = st.secrets.get("SUPABASE_KEY", "") or ""
+        if supa_url and supa_key:
+            params = urllib.parse.urlencode({
+                "select": "id,title,volume,confidence,yes_pct,no_pct,end_date,data",
+                "order": "confidence.desc", "limit": "600"
+            })
+            req = urllib.request.Request(
+                f"{supa_url}/rest/v1/markets?{params}",
+                headers={"apikey": supa_key,
+                         "Authorization": f"Bearer {supa_key}",
+                         "Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                rows = _j.loads(r.read().decode())
+            if rows:
+                return pd.DataFrame(rows)
+    except Exception:
+        pass
+    # Fallback — SQLite מקומי
     try:
         conn = sqlite3.connect(DB_PATH)
         df = pd.read_sql_query("SELECT * FROM markets ORDER BY confidence DESC", conn)
