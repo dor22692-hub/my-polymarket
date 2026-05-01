@@ -1,0 +1,17 @@
+.env
+*.db
+cloudflared.exe
+*.log
+*.bat
+*.db-shm
+*.db-wal
+logs/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+dist/
+*.egg-info/
