@@ -181,11 +181,13 @@ def get_all_wallets() -> list[dict]:
 def deposit(username: str, amount: float) -> bool:
     if amount <= 0:
         return False
-    w = get_wallet(username)
-    if not w:
+    # get_or_create מבטיח שהארנק קיים ב-Supabase
+    w = get_or_create(username)
+    if not w or not w.get("username"):
         return False
+    new_balance = (w.get("balance") or STARTING_BALANCE) + amount
     if _use_cloud():
-        _sb_patch("demo_wallets", {"username": username}, {"balance": w["balance"] + amount})
+        _sb_patch("demo_wallets", {"username": username}, {"balance": new_balance})
     else:
         with _conn() as c:
             c.execute("UPDATE demo_wallets SET balance=balance+? WHERE username=?", (amount, username))
