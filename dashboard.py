@@ -872,9 +872,15 @@ def ui_portfolio_page() -> None:
         st.info("💼 צור ארנק דמו בסרגל הצד")
         return
 
-    # סנכרון מחירים ישירות מ-Polymarket API + פתרון אוטומטי
-    with st.spinner("🔄 מסנכרן מחירים מ-Polymarket…"):
-        price_changes = dw.sync_prices(username)
+    # סנכרון מחירים — פעם ב-5 דקות אוטומטית
+    import time as _time
+    _last = st.session_state.get("_last_sync_dash", 0)
+    if _time.time() - _last > 300:
+        with st.spinner("🔄 מסנכרן מחירים מ-Polymarket…"):
+            price_changes = dw.sync_prices(username)
+        st.session_state["_last_sync_dash"] = _time.time()
+    else:
+        price_changes = {}
     resolved = dw.auto_resolve_positions(username)
 
     if price_changes:

@@ -413,11 +413,22 @@ if _nav == "📊 שווקים":
     elif sort_by == "תפוגה ↑":
         df = df.sort_values("end_date", ascending=True)
 
-    # תרגום אוטומטי של כל הכותרות
-    all_titles = tuple(df["title"].dropna().unique())
-    if "_mob_trans" not in st.session_state or len(st.session_state.get("_mob_trans",{})) < len(all_titles):
-        with st.spinner("מתרגם כותרות לעברית…"):
-            st.session_state["_mob_trans"] = translate_batch(all_titles)
+    # תרגום אוטומטי — כל הטקסטים (כותרות, אירועים, תרחישים)
+    _all_texts: set[str] = set(df["title"].dropna().unique())
+    for _, _r in df.head(60).iterrows():
+        try:
+            _md = json.loads(_r.get("data","{}") or "{}")
+            for _f in ["event_title","group_label","groupItemTitle"]:
+                _v = _md.get(_f,"")
+                if _v: _all_texts.add(str(_v))
+        except: pass
+    _all_texts.discard("")
+    _existing = st.session_state.get("_mob_trans", {})
+    _new = tuple(t for t in _all_texts if t not in _existing)
+    if _new:
+        with st.spinner("מתרגם לעברית…"):
+            _existing.update(translate_batch(_new))
+            st.session_state["_mob_trans"] = _existing
 
     # קיבוץ לפי אירוע
     event_groups: dict[str, dict] = {}
@@ -536,17 +547,35 @@ if _nav == "📊 שווקים":
             sorted_m  = sorted(markets, key=lambda x: x["volume"], reverse=True)
             dom = sorted_m[0] if sorted_m else None
             if dom:
-                yes_p = dom["prices"][0] if dom["prices"] else 0.5
+                yes_p   = dom["prices"][0] if dom["prices"] else 0.5
+                no_p    = max(0.0, 1 - yes_p)
                 dom_lbl = tr(dom["grp_lbl"])
+
+                # קביעה: הלווייתנים הלכו על YES או NO?
+                whale_side = "YES" if yes_p >= 0.5 else "NO"
+                whale_pct  = yes_p * 100 if yes_p >= 0.5 else no_p * 100
+                whale_col  = "#30d158" if whale_side == "YES" else "#ff453a"
+                whale_bg   = "#0d3320" if whale_side == "YES" else "#1f0a0d"
+                roi_val    = (1/yes_p - 1)*100 if whale_side=="YES" and yes_p>0.01 else (1/no_p - 1)*100 if no_p>0.01 else 0
+                ret_val    = 100/yes_p if whale_side=="YES" and yes_p>0.01 else 100/no_p if no_p>0.01 else 0
+
                 st.html(f"""
-<div style="background:#0d3320;border:2px solid #30d158;border-radius:14px;
-            padding:14px;margin-bottom:12px;text-align:center">
-  <div style="color:#30d158;font-size:13px;font-weight:700;margin-bottom:4px">
-    ✅ רוב הכסף הגדול זורם ל:
+<div style="background:{whale_bg};border:2px solid {whale_col};border-radius:14px;
+            padding:16px;margin-bottom:12px;text-align:center">
+  <div style="color:{whale_col};font-size:12px;font-weight:700;margin-bottom:6px;letter-spacing:0.5px">
+    🐋 המלצת הלווייתנים
   </div>
-  <div style="color:#f2f2f7;font-size:17px;font-weight:800">{dom_lbl}</div>
-  <div style="color:#636366;font-size:12px;margin-top:4px">
-    {dom['volume']/total_vol*100:.0f}% מנפח האירוע · ~{max(1,int(dom['volume']/50000))} ארנקים גדולים
+  <div style="color:#f2f2f7;font-size:22px;font-weight:900;margin-bottom:6px">
+    {dom_lbl[:40]}
+  </div>
+  <div style="background:{whale_col};color:#000;font-size:18px;font-weight:900;
+              border-radius:10px;padding:8px 20px;display:inline-block;margin-bottom:8px">
+    {whale_side} · {whale_pct:.0f}%
+  </div>
+  <div style="color:#636366;font-size:12px">
+    תשואה: +{roi_val:.0f}% · על $100 ← ${ret_val:.0f}
+    · {dom['volume']/total_vol*100:.0f}% מנפח האירוע
+    · ~{max(1,int(dom['volume']/50000))} ארנקים גדולים
   </div>
 </div>""")
             for m in sorted_m[:6]:
@@ -704,8 +733,15 @@ elif _nav == "💼 ארנק":
                 st.warning("הכנס שם משתמש")
     else:
         username = st.session_state.wallet_user
-        with st.spinner("🔄 מסנכרן מחירים…"):
-            price_changes = dw.sync_prices(username)
+        # sync אוטומטי — פעם ב-5 דקות
+        import time as _time
+        _last = st.session_state.get("_last_sync", 0)
+        if _time.time() - _last > 300:
+            with st.spinner("🔄 מסנכרן מחירים מ-Polymarket…"):
+                price_changes = dw.sync_prices(username)
+            st.session_state["_last_sync"] = _time.time()
+        else:
+            price_changes = {}
         wallet = dw.get_or_create(username)
         stats  = dw.get_stats(username)
         if price_changes:
