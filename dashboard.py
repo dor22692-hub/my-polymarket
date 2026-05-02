@@ -1257,8 +1257,8 @@ with st.sidebar:
     # טעינת משתמש מ-URL params (זיכרון אוטומטי בין סשנים)
     if "wallet_user" not in st.session_state:
         _saved = st.query_params.get("user", "")
-        if _saved and dw.get_wallet(_saved):
-            st.session_state.wallet_user = _saved
+        if _saved:
+            st.session_state.wallet_user = _saved  # קבל מ-URL בלי לאמת
         else:
             st.session_state.wallet_user = ""
 

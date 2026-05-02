@@ -20,9 +20,11 @@ def _init_supa() -> None:
         return
     try:
         import streamlit as st
-        _SUPA_URL = (st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL", "")).strip()
-        _SUPA_KEY = (st.secrets.get("SUPABASE_KEY") or os.getenv("SUPABASE_KEY", "")).strip()
+        _SUPA_URL = st.secrets["SUPABASE_URL"] if "SUPABASE_URL" in st.secrets else ""
+        _SUPA_KEY = st.secrets["SUPABASE_KEY"] if "SUPABASE_KEY" in st.secrets else ""
     except Exception:
+        pass
+    if not _SUPA_URL:
         _SUPA_URL = os.getenv("SUPABASE_URL", "").strip()
         _SUPA_KEY = os.getenv("SUPABASE_KEY", "").strip()
 

@@ -302,8 +302,13 @@ def fmt_vol(v):
 # ── זיכרון משתמש ─────────────────────────────────────────────────────────────
 
 if "wallet_user" not in st.session_state:
-    saved = st.query_params.get("user","")
-    st.session_state.wallet_user = saved if (saved and dw.get_wallet(saved)) else ""
+    saved = st.query_params.get("user", "")
+    if saved:
+        # נסה לאמת מול Supabase — אם נכשל, בכל זאת קבל את המשתמש
+        w = dw.get_wallet(saved)
+        st.session_state.wallet_user = saved if (w or saved) else ""
+    else:
+        st.session_state.wallet_user = ""
 
 # ── כותרת ────────────────────────────────────────────────────────────────────
 
