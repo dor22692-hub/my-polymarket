@@ -160,13 +160,25 @@ st.html("""
   /* ── slider ── */
   [data-testid="stSlider"] { padding: 10px 0 !important; }
 
-  /* ── הסתר אלמנטי Streamlit ── */
-  #MainMenu { display: none !important; }
-  footer { display: none !important; }
-  [data-testid="stToolbarActions"] { display: none !important; }
-  [data-testid="stDecoration"] { display: none !important; }
-  [data-testid="stStatusWidget"] { display: none !important; }
-  .stDeployButton { display: none !important; }
+  /* ── הסתר כל אלמנטי Streamlit ── */
+  #MainMenu,
+  footer,
+  header,
+  [data-testid="stToolbarActions"],
+  [data-testid="stDecoration"],
+  [data-testid="stStatusWidget"],
+  [data-testid="stMainMenuButton"],
+  [data-testid="baseButton-headerNoPadding"],
+  .stDeployButton,
+  .viewerBadge_container__r5tak,
+  .styles_viewerBadge__CvC9N,
+  [class*="viewerBadge"],
+  [class*="toolbar"] { display: none !important; }
+
+  /* הסתר כפתורים צפים בפינה */
+  .st-emotion-cache-zq5wmm,
+  .st-emotion-cache-1dp5vir,
+  .e8zbici0 { display: none !important; }
 
   /* ── ripple effect לכפתורים ── */
   .stButton > button::after {
