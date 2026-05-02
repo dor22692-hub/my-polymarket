@@ -13,11 +13,15 @@ import demo_wallet as dw
 dw.init_tables()
 
 st.set_page_config(
-    page_title="🐋 Polymarket",
+    page_title="🐋 Polymarket Mobile",
     page_icon="🐋",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+st.html("""
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐋</text></svg>">
+<meta name="apple-mobile-web-app-title" content="Polymarket">
+""")
 
 # ── viewport + CSS מותאם Android ─────────────────────────────────────────────
 
@@ -644,19 +648,19 @@ elif _nav == "⏰ פגים":
 
 elif _nav == "💼 ארנק":
     if not st.session_state.wallet_user:
-        st.html("<div style='padding:20px 0;text-align:center;color:#636366;font-size:15px'>💼 התחבר לארנק שלך</div>")
+        st.markdown("## 💼 התחבר לארנק שלך")
         all_w = dw.get_all_wallets()
         if all_w:
             names = [w["username"] for w in all_w]
-            sel = st.selectbox("משתמש קיים:", ["— חדש —"]+names, key="mob_sel")
+            sel = st.selectbox("משתמש קיים:", ["— חדש —"] + names, key="mob_sel")
             if sel != "— חדש —":
-                if st.button("✅ כניסה", type="primary", key="mob_in"):
+                if st.button("✅ כניסה", type="primary", key="mob_in", use_container_width=True):
                     st.session_state.wallet_user = sel
                     st.query_params["user"] = sel
                     st.rerun()
             else:
-                nn = st.text_input("שם משתמש חדש:", key="mob_nn")
-                if st.button("✅ צור ארנק", type="primary", key="mob_cr"):
+                nn = st.text_input("שם משתמש חדש:", placeholder="לדוג׳: GamblerPro", key="mob_nn")
+                if st.button("✅ צור ארנק", type="primary", key="mob_cr", use_container_width=True):
                     if nn.strip():
                         dw.get_or_create(nn.strip())
                         st.session_state.wallet_user = nn.strip()
