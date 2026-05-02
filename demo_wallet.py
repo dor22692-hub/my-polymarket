@@ -148,7 +148,11 @@ def create_wallet(username: str) -> dict:
 
 
 def get_or_create(username: str) -> dict:
-    return get_wallet(username) or create_wallet(username)
+    result = get_wallet(username) or create_wallet(username)
+    if result is None:
+        # fallback — מחזיר ברירת מחדל אם Supabase נכשל
+        return {"username": username, "balance": STARTING_BALANCE, "created_at": ""}
+    return result
 
 
 def rename_wallet(old: str, new: str) -> bool:
