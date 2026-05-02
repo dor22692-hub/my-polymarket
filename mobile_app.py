@@ -160,6 +160,14 @@ st.html("""
   /* ── slider ── */
   [data-testid="stSlider"] { padding: 10px 0 !important; }
 
+  /* ── הסתר אלמנטי Streamlit ── */
+  #MainMenu { display: none !important; }
+  footer { display: none !important; }
+  [data-testid="stToolbarActions"] { display: none !important; }
+  [data-testid="stDecoration"] { display: none !important; }
+  [data-testid="stStatusWidget"] { display: none !important; }
+  .stDeployButton { display: none !important; }
+
   /* ── ripple effect לכפתורים ── */
   .stButton > button::after {
     content: '';
