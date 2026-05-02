@@ -650,22 +650,29 @@ elif _nav == "💼 ארנק":
     if not st.session_state.wallet_user:
         st.markdown("## 💼 התחבר לארנק שלך")
         all_w = dw.get_all_wallets()
+
+        # משתמשים קיימים
         if all_w:
             names = [w["username"] for w in all_w]
-            sel = st.selectbox("משתמש קיים:", ["— חדש —"] + names, key="mob_sel")
-            if sel != "— חדש —":
+            sel = st.selectbox("👤 משתמש קיים:", ["— בחר —"] + names, key="mob_sel")
+            if sel != "— בחר —":
                 if st.button("✅ כניסה", type="primary", key="mob_in", use_container_width=True):
                     st.session_state.wallet_user = sel
                     st.query_params["user"] = sel
                     st.rerun()
+            st.divider()
+
+        # יצירת ארנק חדש — תמיד גלוי
+        st.markdown("**או צור ארנק חדש:**")
+        nn = st.text_input("שם משתמש:", placeholder="לדוג׳: GamblerPro", key="mob_nn")
+        if st.button("✅ צור ארנק חדש", type="primary", key="mob_cr", use_container_width=True):
+            if nn.strip():
+                dw.get_or_create(nn.strip())
+                st.session_state.wallet_user = nn.strip()
+                st.query_params["user"] = nn.strip()
+                st.rerun()
             else:
-                nn = st.text_input("שם משתמש חדש:", placeholder="לדוג׳: GamblerPro", key="mob_nn")
-                if st.button("✅ צור ארנק", type="primary", key="mob_cr", use_container_width=True):
-                    if nn.strip():
-                        dw.get_or_create(nn.strip())
-                        st.session_state.wallet_user = nn.strip()
-                        st.query_params["user"] = nn.strip()
-                        st.rerun()
+                st.warning("הכנס שם משתמש")
     else:
         username = st.session_state.wallet_user
         with st.spinner("🔄 מסנכרן מחירים…"):
