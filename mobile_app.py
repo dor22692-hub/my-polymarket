@@ -476,7 +476,7 @@ if _nav == "📊 שווקים":
 
         # ── לשונית בחירה ─────────────────────────────────────
         view = st.radio("תצוגה:", ["📋 תרחישים","💼 קנה/מכור","🐋 לווייתנים"],
-                        horizontal=True, key=f"view_{ev_slug}",
+                        horizontal=True, key=f"view_{abs(hash(ev_slug))}",
                         label_visibility="collapsed")
 
         if view == "📋 תרחישים":
@@ -522,21 +522,22 @@ if _nav == "📊 שווקים":
                     no_p  = max(0.0, 1-yes_p)
                     lbl   = tr(m["grp_lbl"])
                     mid_slug = m["slug"] or ev_slug
+                    _mk = abs(hash(f"{ev_slug}_{m['grp_lbl']}"))
                     with st.expander(f"🎯 {lbl[:45]}  ({yes_p*100:.0f}%)", expanded=False):
                         st.caption(f"Yes {int(yes_p*100)}¢ → על $100 תקבל ${100/yes_p:.0f}  |  No {int(no_p*100)}¢ → ${100/no_p:.0f}")
                         amt = st.number_input("סכום ($)", 1.0, float(max(1,bal)), min(10.0,float(bal)),
-                                             5.0, key=f"mob_amt_{ev_slug}_{m['grp_lbl'][:20]}")
+                                             5.0, key=f"mob_amt_{_mk}")
                         c1,c2 = st.columns(2)
                         with c1:
                             if st.button(f"✅ Yes {int(yes_p*100)}¢", use_container_width=True,
-                                        key=f"mob_by_{ev_slug}_{m['grp_lbl'][:20]}"):
+                                        key=f"mob_by_{_mk}"):
                                 ok,msg = dw.open_position(username, mid_slug, m["title"],
                                     m["grp_lbl"], ev_title_raw, "yes", amt, yes_p, m.get("end",""))
                                 (st.success if ok else st.error)(msg)
                                 if ok: st.rerun()
                         with c2:
                             if st.button(f"🔴 No {int(no_p*100)}¢", use_container_width=True,
-                                        key=f"mob_bn_{ev_slug}_{m['grp_lbl'][:20]}"):
+                                        key=f"mob_bn_{_mk}"):
                                 ok,msg = dw.open_position(username, mid_slug, m["title"],
                                     m["grp_lbl"], ev_title_raw, "no", amt, no_p, m.get("end",""))
                                 (st.success if ok else st.error)(msg)
@@ -616,7 +617,7 @@ if _nav == "📊 שווקים":
             with hc2:
                 if username:
                     is_w = dw.watchlist_has(username, ev_slug)
-                    if st.button("⭐" if is_w else "☆", key=f"wl_ev_{ev_slug[:15]}", help="הוסף/הסר ממעקב"):
+                    if st.button("⭐" if is_w else "☆", key=f"wl_ev_{abs(hash(ev_slug))}", help="הוסף/הסר ממעקב"):
                         if is_w: dw.watchlist_remove(username, ev_slug)
                         else: dw.watchlist_add(username, ev_slug, ev["ev_title"])
                         st.rerun()
@@ -640,7 +641,7 @@ if _nav == "📊 שווקים":
             with hc2:
                 if username:
                     is_w = dw.watchlist_has(username, m["slug"])
-                    if st.button("⭐" if is_w else "☆", key=f"wl_m_{m['slug'][:15]}", help="הוסף/הסר ממעקב"):
+                    if st.button("⭐" if is_w else "☆", key=f"wl_m_{abs(hash(m['slug']))}", help="הוסף/הסר ממעקב"):
                         if is_w: dw.watchlist_remove(username, m["slug"])
                         else: dw.watchlist_add(username, m["slug"], m["title"])
                         st.rerun()
