@@ -308,7 +308,11 @@ if "wallet_user" not in st.session_state:
 # ── כותרת ────────────────────────────────────────────────────────────────────
 
 user = st.session_state.wallet_user
-wallet_bal = f"${dw.get_or_create(user)['balance']:.0f}" if user else ""
+try:
+    _w = dw.get_or_create(user) if user else None
+    wallet_bal = f"${_w['balance']:.0f}" if _w else ""
+except Exception:
+    wallet_bal = ""
 
 st.html(f"""
 <div style="display:flex;justify-content:space-between;align-items:center;
