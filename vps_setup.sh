@@ -18,7 +18,7 @@ pip3 install httpx requests pandas loguru pydantic pydantic-settings python-dote
 echo "=== מגדיר משתני סביבה ==="
 cat > /root/polymarket/.env << 'ENVEOF'
 SUPABASE_URL=https://mncvhthgeqsfxkriskhk.supabase.co
-SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uY3ZodGhnZXFzZnhrcmlza2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2MzE0MDgsImV4cCI6MjA5MzIwNzQwOH0.WQZ4zkOjzeXQaoKYfmQXdU-kpBdUBx3dPPNiKR8dkMY
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uY3ZodGhnZXFzZnhrcmlza2hrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzYzMTQwOCwiZXhwIjoyMDkzMjA3NDA4fQ.gbS2ML_VItTUpeYyKUFUYrRg_HDtcppr2MR2AgiSLXw
 ENVEOF
 
 echo "=== מריץ סריקה ראשונה ==="

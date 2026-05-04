@@ -260,7 +260,8 @@ def load_markets() -> pd.DataFrame:
         if supa_url and supa_key:
             params = urllib.parse.urlencode({
                 "select": "id,title,volume,confidence,yes_pct,no_pct,end_date,data",
-                "order": "confidence.desc", "limit": "600"
+                "order": "confidence.desc", "limit": "600",
+                "volume": "gte.1000",
             })
             req = urllib.request.Request(
                 f"{supa_url}/rest/v1/markets?{params}",
@@ -277,7 +278,9 @@ def load_markets() -> pd.DataFrame:
     # Fallback — SQLite מקומי
     try:
         conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query("SELECT * FROM markets ORDER BY confidence DESC", conn)
+        df = pd.read_sql_query(
+            "SELECT * FROM markets WHERE volume >= 1000 ORDER BY confidence DESC", conn
+        )
         conn.close()
         return df
     except Exception:
@@ -470,9 +473,14 @@ if _nav == "📊 שווקים":
     st.caption(f"מציג {len(event_groups)+len(standalone_list)} אירועים")
     username = st.session_state.wallet_user
 
+    # קורא ארנק פעם אחת בלבד לכל הדף
+    _wkey = f"_wc_{username}"
+    if username and _wkey not in st.session_state:
+        st.session_state[_wkey] = dw.get_or_create(username)
+    wallet_now = st.session_state.get(_wkey) if username else None
+
     def _mob_market_body(markets: list[dict], ev_slug: str, ev_title_raw: str) -> None:
         """תוכן expander: תרחישים + קנייה + לווייתנים."""
-        wallet_now = dw.get_or_create(username) if username else None
 
         # ── לשונית בחירה ─────────────────────────────────────
         view = st.radio("תצוגה:", ["📋 תרחישים","💼 קנה/מכור","🐋 לווייתנים"],
@@ -878,11 +886,29 @@ elif _nav == "💼 ארנק":
         closed = [p for p in dw.get_positions(username) if p["status"]!="open"]
         if closed:
             with st.expander(f"📋 היסטוריה ({len(closed)} עסקאות)"):
-                rows = [{"תאריך": p["timestamp"][:10],
-                         "תרחיש": p["group_label"][:28],
-                         "תוצאה": "🏆" if p["status"]=="won" else "❌",
-                         "P&L": f"${p['pnl']:+.2f}"} for p in closed[:30]]
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                for p in closed[:30]:
+                    won      = p["status"] == "won"
+                    icon     = "🏆" if won else "❌"
+                    pnl      = p.get("pnl", 0) or 0
+                    pnl_col  = "#30d158" if pnl >= 0 else "#ff453a"
+                    side     = "YES" if p.get("side","yes")=="yes" else "NO"
+                    side_col = "#30d158" if side=="YES" else "#ff453a"
+                    label    = (p.get("group_label","") or p.get("market_title",""))[:60]
+                    date     = str(p.get("timestamp",""))[:10]
+                    amt      = p.get("amount", 0) or 0
+                    st.html(f"""
+<div style="background:#1c1f2b;border-radius:12px;padding:12px 14px;
+            margin-bottom:8px;direction:rtl;border-right:3px solid {pnl_col}">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <span style="font-size:13px;font-weight:700;color:#f2f2f7">{icon} {label}</span>
+    <span style="font-size:16px;font-weight:800;color:{pnl_col}">${pnl:+.2f}</span>
+  </div>
+  <div style="display:flex;gap:12px;font-size:11px;color:#8e8e93">
+    <span>📅 {date}</span>
+    <span style="color:{side_col};font-weight:700">{side}</span>
+    <span>💵 ${amt:.2f}</span>
+  </div>
+</div>""")
 
         st.divider()
         if st.button("🚪 התנתק", key="mob_out"):

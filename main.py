@@ -301,4 +301,13 @@ def fetch_and_analyze() -> None:
 
 
 if __name__ == "__main__":
-    fetch_and_analyze()
+    import time
+    INTERVAL_MINUTES = 30
+    logger.info(f"מתחיל סריקה רציפה כל {INTERVAL_MINUTES} דקות")
+    while True:
+        try:
+            fetch_and_analyze()
+        except Exception as exc:
+            logger.error(f"שגיאה בסריקה: {exc}")
+        logger.info(f"ממתין {INTERVAL_MINUTES} דקות לסריקה הבאה...")
+        time.sleep(INTERVAL_MINUTES * 60)

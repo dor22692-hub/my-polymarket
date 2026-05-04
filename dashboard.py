@@ -112,7 +112,8 @@ def load_markets() -> pd.DataFrame:
             params = urllib.parse.urlencode({
                 "select": "id,title,volume,confidence,yes_pct,no_pct,end_date,data",
                 "order": "confidence.desc",
-                "limit": "600"
+                "limit": "600",
+                "volume": "gte.1000",
             })
             req = urllib.request.Request(
                 f"{supa_url}/rest/v1/markets?{params}",
@@ -128,7 +129,9 @@ def load_markets() -> pd.DataFrame:
     # Fallback — SQLite מקומי
     try:
         conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query("SELECT * FROM markets ORDER BY confidence DESC", conn)
+        df = pd.read_sql_query(
+            "SELECT * FROM markets WHERE volume >= 1000 ORDER BY confidence DESC", conn
+        )
         conn.close()
         return df
     except Exception:
@@ -1367,24 +1370,7 @@ with st.sidebar:
     st.divider()
     st.markdown("### 📡 בקרת נתונים")
     if st.button("🔄 רענן נתונים מ-Polymarket", use_container_width=True, type="primary"):
-        import subprocess, sys
-        with st.spinner("מעדכן נתונים מ-Polymarket... (30-60 שניות)"):
-            try:
-                result = subprocess.run(
-                    [sys.executable, "main.py"],
-                    capture_output=True, text=True,
-                    timeout=120,
-                    cwd=__import__("os").path.dirname(__file__) or "."
-                )
-                st.cache_data.clear()
-                if result.returncode == 0:
-                    st.success("✅ נתונים עודכנו בהצלחה!")
-                else:
-                    st.warning(f"⚠️ עודכן עם אזהרות")
-            except subprocess.TimeoutExpired:
-                st.warning("⏱ העדכון לקח יותר מדי — נסה שוב")
-            except Exception as e:
-                st.error(f"שגיאה: {e}")
+        st.cache_data.clear()
         st.rerun()
 
     st.divider()
