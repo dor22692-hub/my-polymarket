@@ -535,9 +535,8 @@ if _page == "markets":
     _existing = st.session_state.get("_mob_trans", {})
     _new = tuple(t for t in _all_texts if t not in _existing)
     if _new:
-        with st.spinner("מתרגם לעברית…"):
-            _existing.update(translate_batch(_new))
-            st.session_state["_mob_trans"] = _existing
+        _existing.update(translate_batch(_new[:20]))
+        st.session_state["_mob_trans"] = _existing
 
     # קיבוץ לפי אירוע
     event_groups: dict[str, dict] = {}
@@ -784,9 +783,8 @@ elif _page == "expiring":
         _et_exist = st.session_state.get("_mob_trans", {})
         _et_new = tuple(t for t in exp_titles if t not in _et_exist)
         if _et_new:
-            with st.spinner("מתרגם…"):
-                _et_exist.update(translate_batch(_et_new))
-                st.session_state["_mob_trans"] = _et_exist
+            _et_exist.update(translate_batch(_et_new[:15]))
+            st.session_state["_mob_trans"] = _et_exist
 
         st.caption(f"נמצאו {len(expiring)} שווקים")
         bal = wallet_now.get("balance", 0) if wallet_now else 0
@@ -874,7 +872,7 @@ elif _page == "cats":
             _cat_ex = st.session_state.get("_mob_trans", {})
             _cat_new = tuple(t for t in _cat_texts if t not in _cat_ex)
             if _cat_new:
-                _cat_ex.update(translate_batch(_cat_new))
+                _cat_ex.update(translate_batch(_cat_new[:15]))
                 st.session_state["_mob_trans"] = _cat_ex
             st.caption(f"{len(_filt)} שווקים בקטגוריה {_cat}")
             _cat_bal = wallet_now.get("balance", 0) if wallet_now else 0
