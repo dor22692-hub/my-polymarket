@@ -203,6 +203,25 @@ st.html("""
     font-size: 14px !important;
     padding: 6px 12px !important;
   }
+
+  /* ── סרגל ניווט תחתון צף ── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 440px;
+    background: rgba(17,19,24,0.97);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.09);
+    z-index: 9999; display: flex; justify-content: space-around; align-items: stretch;
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+  }
+  .bottom-nav a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-decoration: none; color: #636366; font-size: 9px; font-weight: 700;
+    padding: 4px 2px; flex: 1; gap: 2px;
+    -webkit-tap-highlight-color: transparent; transition: color 0.15s; letter-spacing: 0.1px;
+  }
+  .bottom-nav a .ni { font-size: 19px; line-height: 1.2; }
+  .bottom-nav a.active { color: #1a73e8; }
 </style>
 """)
 
@@ -333,14 +352,49 @@ if "wallet_user" not in st.session_state:
     else:
         st.session_state.wallet_user = ""
 
+# ── שער כניסה ────────────────────────────────────────────────────────────────
+
+if not st.session_state.wallet_user:
+    st.html("""
+<div style="text-align:center;padding:50px 20px 20px;direction:rtl">
+  <div style="font-size:72px">🐋</div>
+  <div style="font-size:26px;font-weight:900;margin-top:10px;letter-spacing:-0.5px">Polymarket</div>
+  <div style="color:#636366;font-size:13px;margin-top:6px">ניתוח שווקים חכם בזמן אמת</div>
+</div>""")
+    _all_wallets = dw.get_all_wallets()
+    if _all_wallets:
+        _names = [w["username"] for w in _all_wallets]
+        _sel = st.selectbox("👤 כניסה עם חשבון קיים:", ["— בחר —"] + _names, key="lg_sel")
+        if _sel != "— בחר —":
+            if st.button("✅ כניסה", type="primary", key="lg_in", use_container_width=True):
+                st.session_state.wallet_user = _sel
+                st.session_state.pop(f"_wc_{_sel}", None)
+                st.query_params["user"] = _sel
+                st.rerun()
+        st.html("<div style='text-align:center;color:#636366;margin:10px 0;font-size:12px'>— או —</div>")
+    _new_name = st.text_input("🆕 צור חשבון חדש — הכנס שם:", placeholder="לדוג׳ GamblerPro", key="lg_new")
+    if st.button("✅ צור חשבון", type="primary", key="lg_cr", use_container_width=True):
+        if _new_name.strip():
+            dw.get_or_create(_new_name.strip())
+            st.session_state.wallet_user = _new_name.strip()
+            st.query_params["user"] = _new_name.strip()
+            st.rerun()
+        else:
+            st.warning("הכנס שם משתמש")
+    st.stop()
+
 # ── כותרת ────────────────────────────────────────────────────────────────────
 
 user = st.session_state.wallet_user
-try:
-    _w = dw.get_or_create(user) if user else None
-    wallet_bal = f"${_w['balance']:.0f}" if _w else ""
-except Exception:
-    wallet_bal = ""
+username = user
+_wkey = f"_wc_{user}"
+if _wkey not in st.session_state:
+    try:
+        st.session_state[_wkey] = dw.get_or_create(user)
+    except Exception:
+        st.session_state[_wkey] = {"balance": 0, "username": user}
+wallet_now = st.session_state[_wkey]
+wallet_bal = f"${wallet_now.get('balance', 0):.0f}"
 
 st.html(f"""
 <div style="display:flex;justify-content:space-between;align-items:center;
@@ -355,40 +409,34 @@ st.html(f"""
 </div>
 """)
 
-# ── כפתור רענון נתונים ───────────────────────────────────────────────────────
+# ── ניווט — סרגל תחתון צף ────────────────────────────────────────────────────
 
-if st.button("🔄 רענן נתונים מ-Polymarket", type="primary", use_container_width=True):
-    import subprocess, sys, os
-    with st.spinner("מעדכן נתונים... (כ-30 שניות)"):
-        try:
-            result = subprocess.run(
-                [sys.executable, "main.py"],
-                capture_output=True, text=True, timeout=120,
-                cwd=os.path.dirname(os.path.abspath(__file__))
-            )
-            st.cache_data.clear()
-            if result.returncode == 0:
-                st.success("✅ נתונים עודכנו!")
-            else:
-                st.warning("⚠️ עודכן עם אזהרות")
-        except subprocess.TimeoutExpired:
-            st.warning("⏱ לקח יותר מדי — נסה שוב")
-        except Exception as e:
-            st.error(f"שגיאה: {e}")
+_page = st.query_params.get("p", "markets")
+_u_param = f"&user={user}" if user else ""
+_nav_items = [
+    ("markets",  "📊", "שווקים"),
+    ("cats",     "🏷️",  "קטגוריות"),
+    ("expiring", "⏰",  "קרובים"),
+    ("arb",      "🎯",  "ארביטראז׳"),
+    ("watch",    "⭐",  "מעקב"),
+    ("wallet",   "💼",  "ארנק"),
+]
+_nav_html = "".join([
+    f'<a href="?p={k}{_u_param}" class="{"active" if _page == k else ""}">'
+    f'<span class="ni">{icon}</span><span>{lbl}</span></a>'
+    for k, icon, lbl in _nav_items
+])
+st.html(f'<div class="bottom-nav">{_nav_html}</div>')
+
+if st.button("🔄 רענן נתונים", key="mob_rf", use_container_width=True):
+    st.cache_data.clear()
     st.rerun()
-
-# ── ניווט (radio — נשמר אחרי rerun) ─────────────────────────────────────────
-
-_nav = st.radio(
-    "", ["📊 שווקים", "⏰ פגים", "💼 ארנק", "🎯 ארביטראז'", "⭐ מעקב"],
-    horizontal=True, key="mob_nav", label_visibility="collapsed"
-)
 
 # ════════════════════════════════════════════════════════
 # 📊 שווקים
 # ════════════════════════════════════════════════════════
 
-if _nav == "📊 שווקים":
+if _page == "markets":
     df_raw = load_markets()
 
     # ── חיפוש תמיד גלוי ─────────────────────────────────
@@ -660,7 +708,12 @@ if _nav == "📊 שווקים":
 # ⏰ פגים בקרוב
 # ════════════════════════════════════════════════════════
 
-elif _nav == "⏰ פגים":
+elif _page == "expiring":
+    st.html("""
+<div style="padding:8px 0 14px;direction:rtl">
+  <div style="font-size:20px;font-weight:800">⏰ שווקים קרובים לפקיעה</div>
+  <div style="color:#636366;font-size:12px;margin-top:4px">שווקים שיסגרו בקרוב — אפשרות קנייה/מכירה</div>
+</div>""")
     days_sel = st.select_slider("תפוגה עד", options=[1,3,7,14,20], value=7, key="exp_d")
 
     with st.spinner("מביא נתונים…"):
@@ -669,16 +722,16 @@ elif _nav == "⏰ פגים":
     if not expiring:
         st.info(f"אין שווקים שפגים ב-{days_sel} ימים הקרובים.")
     else:
-        # תרגום
         exp_titles = tuple(set(m["title"] for m in expiring))
-        existing = st.session_state.get("_mob_trans", {})
-        new_t = tuple(t for t in exp_titles if t not in existing)
-        if new_t:
+        _et_exist = st.session_state.get("_mob_trans", {})
+        _et_new = tuple(t for t in exp_titles if t not in _et_exist)
+        if _et_new:
             with st.spinner("מתרגם…"):
-                existing.update(translate_batch(new_t))
-                st.session_state["_mob_trans"] = existing
+                _et_exist.update(translate_batch(_et_new))
+                st.session_state["_mob_trans"] = _et_exist
 
         st.caption(f"נמצאו {len(expiring)} שווקים")
+        bal = wallet_now.get("balance", 0) if wallet_now else 0
 
         for m in expiring:
             h = m["hours_left"]
@@ -688,32 +741,125 @@ elif _nav == "⏰ פגים":
             elif d < 7:  badge,bc = f"🟡 {d:.1f} ימים",  "#ffd60a"
             else:        badge,bc = f"🟢 {d:.0f} ימים",  "#30d158"
 
-            poly_url = f"https://polymarket.com/event/{m['slug']}" if m["slug"] else "#"
             title    = tr(m["title"])
+            yes_p    = m["yes_pct"] / 100
+            no_p     = max(0.0, 1 - yes_p)
+            slug_h   = abs(hash(m["slug"] or m["title"]))
 
-            st.html(f"""
-<div style="background:#1a1d24;border-radius:16px;padding:16px;margin-bottom:10px;direction:rtl">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px">
-    <div style="font-size:14px;font-weight:700;color:#f2f2f7;line-height:1.4;flex:1">{title}</div>
-    <div style="color:{bc};font-weight:800;font-size:13px;white-space:nowrap;flex-shrink:0">{badge}</div>
+            with st.expander(f"{badge}  {title[:48]}", expanded=False):
+                st.html(f"""
+<div style="display:flex;justify-content:space-between;align-items:center;
+            margin-bottom:10px;direction:rtl">
+  <div style="display:flex;gap:8px">
+    <span style="background:#0d3320;color:#30d158;padding:6px 12px;border-radius:10px;
+                 font-size:13px;font-weight:700">Yes {yes_p*100:.0f}%</span>
+    <span style="background:#1f0a0d;color:#ff453a;padding:6px 12px;border-radius:10px;
+                 font-size:13px;font-weight:700">No {no_p*100:.0f}%</span>
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <div style="display:flex;gap:8px">
-      <span style="background:#0d3320;color:#30d158;padding:6px 12px;border-radius:10px;
-                   font-size:13px;font-weight:700">Yes {m['yes_pct']:.0f}%</span>
-      <span style="color:#636366;font-size:13px;padding:6px 0">{fmt_vol(m['volume'])}</span>
-    </div>
-    <a href="{poly_url}" target="_blank"
-       style="background:#0a84ff;color:#fff;padding:8px 16px;border-radius:10px;
-              font-size:13px;font-weight:700;text-decoration:none">פתח ↗</a>
-  </div>
+  <span style="color:#636366;font-size:12px">{fmt_vol(m['volume'])}</span>
 </div>""")
+                st.caption(f"יתרה: ${bal:.2f}")
+                amt = st.number_input("סכום ($)", 1.0, float(max(1, bal)),
+                                      min(10.0, float(max(1, bal))), 5.0,
+                                      key=f"exp_amt_{slug_h}")
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button(f"✅ Yes {yes_p*100:.0f}¢", key=f"exp_by_{slug_h}",
+                                 use_container_width=True, type="primary"):
+                        ok, msg = dw.open_position(username, m["slug"], m["title"],
+                                                   m["title"], m["title"],
+                                                   "yes", amt, yes_p, m["end_date"])
+                        (st.success if ok else st.error)(msg)
+                        if ok: st.rerun()
+                with c2:
+                    if st.button(f"🔴 No {no_p*100:.0f}¢", key=f"exp_bn_{slug_h}",
+                                 use_container_width=True):
+                        ok, msg = dw.open_position(username, m["slug"], m["title"],
+                                                   m["title"], m["title"],
+                                                   "no", amt, no_p, m["end_date"])
+                        (st.success if ok else st.error)(msg)
+                        if ok: st.rerun()
+
+elif _page == "cats":
+    st.html("""
+<div style="padding:8px 0 14px;direction:rtl">
+  <div style="font-size:20px;font-weight:800">🏷️ קטגוריות</div>
+  <div style="color:#636366;font-size:12px;margin-top:4px">בחר קטגוריה לסינון שווקים</div>
+</div>""")
+    CATS = {
+        "⚽ ספורט":   ["nfl","nba","mlb","nhl","soccer","football","basketball","tennis","sport","game","championship","league","cup","olympics","match","season"],
+        "₿ קריפטו":  ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token","altcoin"],
+        "📈 בורסה":   ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap","treasury"],
+        "🇮🇱 ישראל":  ["israel","hamas","netanyahu","idf","gaza","hezbollah","iran","tel aviv","west bank","knesset"],
+    }
+    _cat = st.session_state.get("_mob_cat", list(CATS.keys())[0])
+    _cat_cols = st.columns(len(CATS))
+    for _ci, (_cname, _col) in enumerate(zip(CATS.keys(), _cat_cols)):
+        with _col:
+            if st.button(_cname, key=f"catbtn_{_ci}",
+                         type="primary" if _cat == _cname else "secondary",
+                         use_container_width=True):
+                st.session_state["_mob_cat"] = _cname
+                _cat = _cname
+
+    df_cat = load_markets()
+    if df_cat.empty:
+        st.warning("אין נתונים זמינים")
+    else:
+        _kw = CATS.get(_cat, [])
+        _pattern = "|".join(_kw)
+        _filt = df_cat[df_cat["title"].str.lower().str.contains(_pattern, na=False)].head(40) if _kw else df_cat.head(40)
+        if _filt.empty:
+            st.info(f"לא נמצאו שווקים בקטגוריה {_cat}")
+        else:
+            _cat_texts = tuple(_filt["title"].dropna().unique())
+            _cat_ex = st.session_state.get("_mob_trans", {})
+            _cat_new = tuple(t for t in _cat_texts if t not in _cat_ex)
+            if _cat_new:
+                _cat_ex.update(translate_batch(_cat_new))
+                st.session_state["_mob_trans"] = _cat_ex
+            st.caption(f"{len(_filt)} שווקים בקטגוריה {_cat}")
+            _cat_bal = wallet_now.get("balance", 0) if wallet_now else 0
+            for _, _crow in _filt.iterrows():
+                try:
+                    _ctitle   = tr(str(_crow.get("title", "")))
+                    _cyes     = float(_crow.get("yes_pct", 50)) / 100
+                    _cno      = max(0.0, 1 - _cyes)
+                    _cvol     = float(_crow.get("volume", 0))
+                    _cend     = str(_crow.get("end_date", ""))[:10]
+                    _cmd      = json.loads(_crow.get("data","{}") or "{}")
+                    _cslug    = _cmd.get("slug","") or str(_crow.get("id",""))
+                    _ch       = abs(hash(_cslug or _ctitle))
+                    _cpoly    = f"https://polymarket.com/event/{_cslug}" if _cslug else "#"
+                    with st.expander(f"{_ctitle[:52]}  │  {_cyes*100:.0f}%  │  {fmt_vol(_cvol)}", expanded=False):
+                        st.caption(f"📅 {_cend}")
+                        _ca = st.number_input("סכום ($)", 1.0, float(max(1,_cat_bal)),
+                                              min(10.0, float(max(1,_cat_bal))), 5.0, key=f"cat_a_{_ch}")
+                        _cc1, _cc2 = st.columns(2)
+                        with _cc1:
+                            if st.button(f"✅ Yes {_cyes*100:.0f}¢", key=f"cat_y_{_ch}",
+                                         use_container_width=True, type="primary"):
+                                ok,msg = dw.open_position(username, _cslug, str(_crow.get("title","")),
+                                    str(_crow.get("title","")), str(_crow.get("title","")),
+                                    "yes", _ca, _cyes, _cend)
+                                (st.success if ok else st.error)(msg)
+                                if ok: st.rerun()
+                        with _cc2:
+                            if st.button(f"🔴 No {_cno*100:.0f}¢", key=f"cat_n_{_ch}",
+                                         use_container_width=True):
+                                ok,msg = dw.open_position(username, _cslug, str(_crow.get("title","")),
+                                    str(_crow.get("title","")), str(_crow.get("title","")),
+                                    "no", _ca, _cno, _cend)
+                                (st.success if ok else st.error)(msg)
+                                if ok: st.rerun()
+                        st.html(f'<div style="direction:rtl;margin-top:6px"><a href="{_cpoly}" target="_blank" style="color:#0a84ff;font-size:11px">🔗 פתח בפולימרקט</a></div>')
+                except: continue
 
 # ════════════════════════════════════════════════════════
 # 💼 ארנק
 # ════════════════════════════════════════════════════════
 
-elif _nav == "💼 ארנק":
+elif _page == "wallet":
     if not st.session_state.wallet_user:
         st.markdown("## 💼 התחבר לארנק שלך")
         all_w = dw.get_all_wallets()
@@ -920,7 +1066,7 @@ elif _nav == "💼 ארנק":
 # 🎯 ארביטראז'
 # ════════════════════════════════════════════════════════
 
-elif _nav == "🎯 ארביטראז'":
+elif _page == "arb":
     st.html("""
 <div style="padding:8px 0 14px;direction:rtl">
   <div style="font-size:18px;font-weight:800">🎯 Negative Spread Scanner</div>
@@ -989,7 +1135,7 @@ elif _nav == "🎯 ארביטראז'":
 # ⭐ מעקב
 # ════════════════════════════════════════════════════════
 
-elif _nav == "⭐ מעקב":
+elif _page == "watch":
     username = st.session_state.wallet_user
     st.html("""
 <div style="padding:8px 0 14px;direction:rtl">
