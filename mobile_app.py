@@ -56,7 +56,7 @@ st.html("""
 
   /* ── container ── */
   .main .block-container {
-    padding: 0 10px 90px !important;
+    padding: 0 10px 140px !important;
     max-width: 440px !important;
   }
 
@@ -217,13 +217,13 @@ st.html("""
 
   /* ── סרגל ניווט תחתון צף ── */
   .bottom-nav {
-    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    position: fixed; bottom: 55px; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 440px;
-    background: rgba(17,19,24,1);
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    background: #111318;
     border-top: 1px solid rgba(255,255,255,0.09);
+    border-radius: 18px 18px 0 0;
     z-index: 999999; display: flex; justify-content: space-around; align-items: stretch;
-    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+    padding: 8px 0 8px;
   }
   .bottom-nav a {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
