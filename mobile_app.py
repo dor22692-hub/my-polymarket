@@ -264,20 +264,38 @@ st.html("""
 
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
 
+def _translate_one(text: str) -> str:
+    """תרגום טקסט בודד — אמין יותר מ-batch לכותרות שאלות."""
+    try:
+        payload = urllib.parse.urlencode({
+            "client": "gtx", "sl": "en", "tl": "iw", "dt": "t", "q": text
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://translate.googleapis.com/translate_a/single",
+            data=payload,
+            headers={"User-Agent": "Mozilla/5.0",
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=6) as r:
+            data = json.loads(r.read().decode())
+        return "".join(s[0] for s in data[0] if s[0]) or text
+    except Exception:
+        return text
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def translate_batch(texts: tuple) -> dict:
     if not texts:
         return {}
-    SEP = " ||| "
+    SEP = "|||"
     results = {}
-    batch_size = 30
+    batch_size = 20
     lst = list(texts)
     for i in range(0, len(lst), batch_size):
         batch = lst[i:i+batch_size]
         try:
             payload = urllib.parse.urlencode({
                 "client": "gtx", "sl": "en", "tl": "iw",
-                "dt": "t", "q": SEP.join(batch)
+                "dt": "t", "q": (" " + SEP + " ").join(batch)
             }).encode("utf-8")
             req = urllib.request.Request(
                 "https://translate.googleapis.com/translate_a/single",
@@ -288,13 +306,16 @@ def translate_batch(texts: tuple) -> dict:
             with urllib.request.urlopen(req, timeout=10) as r:
                 data = json.loads(r.read().decode())
             translated = "".join(s[0] for s in data[0] if s[0])
-            parts = translated.split(SEP)
+            parts = [p.strip() for p in translated.split(SEP)]
             if len(parts) == len(batch):
                 results.update(zip(batch, parts))
             else:
-                for t in batch: results[t] = t
+                # fallback — תרגום אחד-אחד
+                for t in batch:
+                    results[t] = _translate_one(t)
         except Exception:
-            for t in batch: results[t] = t
+            for t in batch:
+                results[t] = _translate_one(t)
     return results
 
 
