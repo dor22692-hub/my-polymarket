@@ -1386,6 +1386,18 @@ with st.sidebar:
     tier_filter = st.multiselect("רמת ביטחון", tier_opts, default=tier_opts)
 
     st.divider()
+    st.markdown("### 🏷️ קטגוריה")
+    DASH_CATS = {
+        "הכל":        [],
+        "⚽ ספורט":   ["nfl","nba","mlb","nhl","soccer","football","basketball","tennis","sport","game","championship","league","cup","olympics","match"],
+        "₿ קריפטו":  ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token"],
+        "📈 בורסה":   ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap"],
+        "🇮🇱 ישראל":  ["israel","hamas","netanyahu","idf","gaza","hezbollah","iran","tel aviv","west bank","knesset"],
+    }
+    cat_label = st.radio("קטגוריה", list(DASH_CATS.keys()), horizontal=True, key="dash_cat", label_visibility="collapsed")
+    cat_kw = DASH_CATS[cat_label]
+
+    st.divider()
     st.markdown("### 📅 פילטר תפוגה")
     expiry_opts = {
         "הכל": None,
@@ -1583,6 +1595,9 @@ if tier_filter:
 if expiry_days is not None:
     cutoff = (datetime.utcnow().date() + __import__("datetime").timedelta(days=expiry_days)).isoformat()
     df = df[df["end_date"].fillna("9999-12-31") <= cutoff]
+if cat_kw:
+    _cp = "|".join(cat_kw)
+    df = df[df["title"].str.lower().str.contains(_cp, na=False)]
 if sort_col == "end_date":
     # מיון "חדש" — שווקים שנוצרו לאחרונה (end_date קצר = חדש יחסית)
     df = df.sort_values("end_date", ascending=True).reset_index(drop=True)

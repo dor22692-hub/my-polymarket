@@ -219,9 +219,13 @@ st.html("""
   .bottom-nav {
     position: fixed; bottom: 55px; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 440px;
-    background: #111318;
-    border-top: 1px solid rgba(255,255,255,0.09);
-    border-radius: 18px 18px 0 0;
+    background: rgba(14,16,22,0.72);
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-bottom: none;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -6px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.09);
     z-index: 999999; display: flex; justify-content: space-around; align-items: stretch;
     padding: 8px 0 8px;
   }
@@ -865,27 +869,75 @@ elif _page == "cats":
                     _ch       = abs(hash(_cslug or _ctitle))
                     _cpoly    = f"https://polymarket.com/event/{_cslug}" if _cslug else "#"
                     with st.expander(f"{_ctitle[:52]}  │  {_cyes*100:.0f}%  │  {fmt_vol(_cvol)}", expanded=False):
-                        st.caption(f"📅 {_cend}")
-                        _ca = st.number_input("סכום ($)", 1.0, float(max(1,_cat_bal)),
-                                              min(10.0, float(max(1,_cat_bal))), 5.0, key=f"cat_a_{_ch}")
-                        _cc1, _cc2 = st.columns(2)
-                        with _cc1:
-                            if st.button(f"✅ Yes {_cyes*100:.0f}¢", key=f"cat_y_{_ch}",
-                                         use_container_width=True, type="primary"):
-                                ok,msg = dw.open_position(username, _cslug, str(_crow.get("title","")),
-                                    str(_crow.get("title","")), str(_crow.get("title","")),
-                                    "yes", _ca, _cyes, _cend)
-                                (st.success if ok else st.error)(msg)
-                                if ok: st.rerun()
-                        with _cc2:
-                            if st.button(f"🔴 No {_cno*100:.0f}¢", key=f"cat_n_{_ch}",
-                                         use_container_width=True):
-                                ok,msg = dw.open_position(username, _cslug, str(_crow.get("title","")),
-                                    str(_crow.get("title","")), str(_crow.get("title","")),
-                                    "no", _ca, _cno, _cend)
-                                (st.success if ok else st.error)(msg)
-                                if ok: st.rerun()
-                        st.html(f'<div style="direction:rtl;margin-top:6px"><a href="{_cpoly}" target="_blank" style="color:#0a84ff;font-size:11px">🔗 פתח בפולימרקט</a></div>')
+                        _cview = st.radio("", ["📋 תרחישים","💼 קנה/מכור","🐋 לווייתנים"],
+                                          horizontal=True, key=f"cat_view_{_ch}",
+                                          label_visibility="collapsed")
+                        if _cview == "📋 תרחישים":
+                            st.html(f"""
+<div style="background:#22252e;border-radius:14px;padding:14px;direction:rtl">
+  <div style="font-size:13px;font-weight:700;color:#f2f2f7;margin-bottom:10px">{_ctitle}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+    <div style="background:#0d3320;border-radius:10px;padding:10px;text-align:center">
+      <div style="color:#636366;font-size:10px">Yes</div>
+      <div style="color:#30d158;font-weight:800;font-size:17px">{_cyes*100:.0f}%</div>
+    </div>
+    <div style="background:#1f0a0d;border-radius:10px;padding:10px;text-align:center">
+      <div style="color:#636366;font-size:10px">No</div>
+      <div style="color:#ff453a;font-weight:800;font-size:17px">{_cno*100:.0f}%</div>
+    </div>
+    <div style="background:#1a1d24;border-radius:10px;padding:10px;text-align:center">
+      <div style="color:#636366;font-size:10px">נפח</div>
+      <div style="color:#f2f2f7;font-weight:700;font-size:13px">{fmt_vol(_cvol)}</div>
+      <a href="{_cpoly}" target="_blank" style="color:#0a84ff;font-size:10px;text-decoration:none">פתח ↗</a>
+    </div>
+  </div>
+  <div style="color:#636366;font-size:11px;margin-top:8px;text-align:right">📅 {_cend}</div>
+</div>""")
+                        elif _cview == "💼 קנה/מכור":
+                            st.caption(f"יתרה: ${_cat_bal:.2f}")
+                            _ca = st.number_input("סכום ($)", 1.0, float(max(1,_cat_bal)),
+                                                  min(10.0, float(max(1,_cat_bal))), 5.0, key=f"cat_a_{_ch}")
+                            _cc1, _cc2 = st.columns(2)
+                            with _cc1:
+                                if st.button(f"✅ Yes {_cyes*100:.0f}¢", key=f"cat_y_{_ch}",
+                                             use_container_width=True, type="primary"):
+                                    ok,msg = dw.open_position(username, _cslug, str(_crow.get("title","")),
+                                        str(_crow.get("title","")), str(_crow.get("title","")),
+                                        "yes", _ca, _cyes, _cend)
+                                    (st.success if ok else st.error)(msg)
+                                    if ok: st.rerun()
+                            with _cc2:
+                                if st.button(f"🔴 No {_cno*100:.0f}¢", key=f"cat_n_{_ch}",
+                                             use_container_width=True):
+                                    ok,msg = dw.open_position(username, _cslug, str(_crow.get("title","")),
+                                        str(_crow.get("title","")), str(_crow.get("title","")),
+                                        "no", _ca, _cno, _cend)
+                                    (st.success if ok else st.error)(msg)
+                                    if ok: st.rerun()
+                        else:  # 🐋 לווייתנים
+                            _ws = "YES" if _cyes >= 0.5 else "NO"
+                            _wp = _cyes*100 if _ws=="YES" else _cno*100
+                            _wc = "#30d158" if _ws=="YES" else "#ff453a"
+                            _wb = "#0d3320" if _ws=="YES" else "#1f0a0d"
+                            _wp_val = _cyes if _ws=="YES" else _cno
+                            _roi = (1/_wp_val-1)*100 if _wp_val>0.01 else 0
+                            _ret = 100/_wp_val if _wp_val>0.01 else 0
+                            if _cvol>=1_000_000:   _vtier="🐳 נפח לווייתן ($1M+)"
+                            elif _cvol>=100_000:   _vtier="🐬 נפח גבוה ($100K+)"
+                            elif _cvol>=10_000:    _vtier="🐟 נפח בינוני ($10K+)"
+                            else:                  _vtier="🦐 נפח נמוך"
+                            st.html(f"""
+<div style="background:{_wb};border:2px solid {_wc};border-radius:14px;
+            padding:16px;text-align:center;direction:rtl">
+  <div style="color:{_wc};font-size:11px;font-weight:700;margin-bottom:6px">🐋 המלצת הלווייתנים</div>
+  <div style="background:{_wc};color:#000;font-size:20px;font-weight:900;
+              border-radius:10px;padding:8px 20px;display:inline-block;margin-bottom:8px">
+    {_ws} · {_wp:.0f}%
+  </div>
+  <div style="color:#9aa0a6;font-size:11px">
+    תשואה: +{_roi:.0f}% · על $100 ← ${_ret:.0f}<br>{_vtier}
+  </div>
+</div>""")
                 except: continue
 
 # ════════════════════════════════════════════════════════
