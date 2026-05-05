@@ -164,21 +164,32 @@ st.html("""
   #MainMenu,
   footer,
   header,
+  [data-testid="stToolbar"],
   [data-testid="stToolbarActions"],
   [data-testid="stDecoration"],
   [data-testid="stStatusWidget"],
   [data-testid="stMainMenuButton"],
   [data-testid="baseButton-headerNoPadding"],
+  [data-testid="stAppDeployButton"],
   .stDeployButton,
   .viewerBadge_container__r5tak,
   .styles_viewerBadge__CvC9N,
   [class*="viewerBadge"],
-  [class*="toolbar"] { display: none !important; }
+  [class*="toolbar"],
+  [class*="StatusWidget"],
+  [class*="deployButton"] { display: none !important; }
 
-  /* הסתר כפתורים צפים בפינה */
+  /* הסתר כפתורים צפים בפינה — כל הגרסאות */
   .st-emotion-cache-zq5wmm,
   .st-emotion-cache-1dp5vir,
-  .e8zbici0 { display: none !important; }
+  .st-emotion-cache-h5rgaw,
+  .st-emotion-cache-1wbqy5l,
+  .e8zbici0,
+  .e1vs0wn30 { display: none !important; }
+
+  /* הסתר אלמנטים עם position fixed מ-Streamlit */
+  [data-testid="stHeader"] { display: none !important; }
+  iframe[title="streamlit_analytics"] { display: none !important; }
 
   /* ── ripple effect לכפתורים ── */
   .stButton > button::after {
@@ -208,10 +219,10 @@ st.html("""
   .bottom-nav {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 100%; max-width: 440px;
-    background: rgba(17,19,24,0.97);
+    background: rgba(17,19,24,1);
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255,255,255,0.09);
-    z-index: 9999; display: flex; justify-content: space-around; align-items: stretch;
+    z-index: 999999; display: flex; justify-content: space-around; align-items: stretch;
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
   }
   .bottom-nav a {
@@ -223,6 +234,28 @@ st.html("""
   .bottom-nav a .ni { font-size: 19px; line-height: 1.2; }
   .bottom-nav a.active { color: #1a73e8; }
 </style>
+<script>
+(function hideStreamlitUI() {
+  function hide() {
+    var sel = [
+      '[data-testid="stStatusWidget"]',
+      '[data-testid="stToolbar"]',
+      '[data-testid="stAppDeployButton"]',
+      '.stDeployButton',
+      'button[title="Open settings"]',
+      'button[aria-label="Open settings"]',
+    ];
+    sel.forEach(function(s) {
+      document.querySelectorAll(s).forEach(function(el) {
+        el.style.setProperty('display','none','important');
+      });
+    });
+  }
+  hide();
+  var obs = new MutationObserver(hide);
+  obs.observe(document.body, {childList:true, subtree:true});
+})();
+</script>
 """)
 
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
