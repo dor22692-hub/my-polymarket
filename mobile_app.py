@@ -265,7 +265,7 @@ st.html("""
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
 
 def _translate_one(text: str) -> str:
-    """תרגום טקסט בודד — אמין יותר מ-batch לכותרות שאלות."""
+    """תרגום טקסט בודד."""
     try:
         payload = urllib.parse.urlencode({
             "client": "gtx", "sl": "en", "tl": "iw", "dt": "t", "q": text
@@ -278,44 +278,48 @@ def _translate_one(text: str) -> str:
         )
         with urllib.request.urlopen(req, timeout=6) as r:
             data = json.loads(r.read().decode())
-        return "".join(s[0] for s in data[0] if s[0]) or text
+        result = "".join(s[0] for s in data[0] if s[0])
+        return result if result else text
     except Exception:
         return text
 
-@st.cache_data(ttl=3600, show_spinner=False)
+# ללא @st.cache_data — המטמון הוא _mob_trans בסשן, רק תרגומים מוצלחים נשמרים
 def translate_batch(texts: tuple) -> dict:
+    """מחזיר רק תרגומים מוצלחים (עברית שונה מהמקור)."""
     if not texts:
         return {}
-    SEP = "|||"
     results = {}
-    batch_size = 20
-    lst = list(texts)
-    for i in range(0, len(lst), batch_size):
-        batch = lst[i:i+batch_size]
-        try:
-            payload = urllib.parse.urlencode({
-                "client": "gtx", "sl": "en", "tl": "iw",
-                "dt": "t", "q": (" " + SEP + " ").join(batch)
-            }).encode("utf-8")
-            req = urllib.request.Request(
-                "https://translate.googleapis.com/translate_a/single",
-                data=payload,
-                headers={"User-Agent": "Mozilla/5.0",
-                         "Content-Type": "application/x-www-form-urlencoded"},
-            )
-            with urllib.request.urlopen(req, timeout=10) as r:
-                data = json.loads(r.read().decode())
-            translated = "".join(s[0] for s in data[0] if s[0])
-            parts = [p.strip() for p in translated.split(SEP)]
-            if len(parts) == len(batch):
-                results.update(zip(batch, parts))
-            else:
-                # fallback — תרגום אחד-אחד
-                for t in batch:
-                    results[t] = _translate_one(t)
-        except Exception:
-            for t in batch:
-                results[t] = _translate_one(t)
+    SEP = "|||"
+    batch = list(texts)
+    try:
+        payload = urllib.parse.urlencode({
+            "client": "gtx", "sl": "en", "tl": "iw",
+            "dt": "t", "q": f" {SEP} ".join(batch)
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://translate.googleapis.com/translate_a/single",
+            data=payload,
+            headers={"User-Agent": "Mozilla/5.0",
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read().decode())
+        translated = "".join(s[0] for s in data[0] if s[0])
+        parts = [p.strip() for p in translated.split(SEP)]
+        if len(parts) == len(batch):
+            for orig, trans in zip(batch, parts):
+                if trans and trans.strip() != orig.strip():
+                    results[orig] = trans
+            if len(results) >= len(batch) * 0.7:  # הצלחה חלקית מספיקה
+                return results
+    except Exception:
+        pass
+    # fallback — תרגום אחד-אחד עד 8 טקסטים
+    missing = [t for t in batch if t not in results]
+    for t in missing[:8]:
+        trans = _translate_one(t)
+        if trans and trans != t:
+            results[t] = trans
     return results
 
 
@@ -398,6 +402,13 @@ def fmt_vol(v):
     if v>=1_000_000: return f"${v/1_000_000:.1f}M"
     if v>=1_000: return f"${v/1_000:.0f}K"
     return f"${v:.0f}"
+
+# ── ניקוי מטמון תרגום כושל ────────────────────────────────────────────────────
+# מסיר ערכים שנשמרו כ"תרגום" אבל הם בעצם האנגלית המקורית
+if "_mob_trans" in st.session_state:
+    _bad = [k for k, v in st.session_state["_mob_trans"].items() if k == v]
+    for _k in _bad:
+        del st.session_state["_mob_trans"][_k]
 
 # ── זיכרון משתמש ─────────────────────────────────────────────────────────────
 
