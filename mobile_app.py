@@ -264,9 +264,8 @@ st.html("""
 
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=86400, show_spinner=False)
 def _t(text: str) -> str:
-    """תרגום טקסט בודד — cache נפרד לכל טקסט, מונע שמירת כישלונות."""
+    """תרגום טקסט בודד — ללא cache גלובלי כדי למנוע שמירת כישלונות."""
     if not text:
         return text
     try:
@@ -281,25 +280,35 @@ def _t(text: str) -> str:
         )
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read().decode())
-        return "".join(s[0] for s in data[0] if s[0]) or text
+        result = "".join(s[0] for s in data[0] if s[0])
+        return result if result else text
     except Exception:
         return text
 
 
 def translate_batch(texts: tuple) -> dict:
-    return {t: _t(t) for t in texts}
+    """תרגום מקבילי — מהיר ואמין. שומר רק הצלחות ב-session_state."""
+    if not texts:
+        return {}
+    import concurrent.futures
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        fmap = {ex.submit(_t, t): t for t in texts}
+        for f in concurrent.futures.as_completed(fmap):
+            orig = fmap[f]
+            try:
+                trans = f.result()
+                if trans and trans != orig:
+                    results[orig] = trans
+            except Exception:
+                pass
+    return results
 
 
 def tr(text: str) -> str:
     if not text:
         return text
-    cached = st.session_state.get("_mob_trans", {})
-    if text in cached:
-        return cached[text]
-    result = _t(text)
-    cached[text] = result
-    st.session_state["_mob_trans"] = cached
-    return result
+    return st.session_state.get("_mob_trans", {}).get(text, text)
 
 # ── נתונים ────────────────────────────────────────────────────────────────────
 
