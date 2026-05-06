@@ -618,7 +618,7 @@ if _page == "markets":
                 yes_p = m["prices"][0] if m["prices"] else 0.5
                 no_p  = max(0.0, 1-yes_p)
                 lbl = tr(m["grp_lbl"])
-                poly = f"https://polymarket.com/event/{m['slug']}" if m["slug"] else "#"
+                poly = f"https://polymarket.com/event/{m['ev_slug'] or m['slug']}" if (m['ev_slug'] or m['slug']) else "#"
                 st.html(f"""
 <div style="background:#22252e;border-radius:14px;padding:14px;margin-bottom:8px;direction:rtl">
   <div style="font-size:14px;font-weight:700;color:#f2f2f7;margin-bottom:10px;line-height:1.3">{lbl}</div>
@@ -655,7 +655,7 @@ if _page == "markets":
                     yes_p = m["prices"][0] if m["prices"] else 0.5
                     no_p  = max(0.0, 1-yes_p)
                     lbl   = tr(m["grp_lbl"])
-                    mid_slug = m["slug"] or ev_slug
+                    mid_slug = ev_slug or m["slug"]
                     _mk = abs(hash(f"{ev_slug}_{m['grp_lbl']}"))
                     with st.expander(f"🎯 {lbl[:45]}  ({yes_p*100:.0f}%)", expanded=False):
                         st.caption(f"Yes {int(yes_p*100)}¢ → על $100 תקבל ${100/yes_p:.0f}  |  No {int(no_p*100)}¢ → ${100/no_p:.0f}")
@@ -761,7 +761,7 @@ if _page == "markets":
     # ── שווקים עצמאיים ───────────────────────────────────
     for m in standalone_list:
         title_d = tr(m["title"])
-        poly_u  = f"https://polymarket.com/event/{m['slug']}" if m["slug"] else "#"
+        poly_u  = f"https://polymarket.com/event/{m['ev_slug'] or m['slug']}" if (m['ev_slug'] or m['slug']) else "#"
         yes_p   = m["prices"][0] if m["prices"] else 0.5
         header  = f"{title_d[:55]}{'…' if len(title_d)>55 else ''}  │  {yes_p*100:.0f}%  │  {fmt_vol(m['volume'])}"
         with st.expander(header, expanded=False):
@@ -908,8 +908,9 @@ elif _page == "cats":
                     _cend     = str(_crow.get("end_date", ""))[:10]
                     _cmd      = json.loads(_crow.get("data","{}") or "{}")
                     _cslug    = _cmd.get("slug","") or str(_crow.get("id",""))
+                    _cev_slug = _cmd.get("event_slug","") or _cslug
                     _ch       = abs(hash(_cslug or _ctitle))
-                    _cpoly    = f"https://polymarket.com/event/{_cslug}" if _cslug else "#"
+                    _cpoly    = f"https://polymarket.com/event/{_cev_slug}" if _cev_slug else "#"
                     with st.expander(f"{_ctitle[:52]}  │  {_cyes*100:.0f}%  │  {fmt_vol(_cvol)}", expanded=False):
                         _cview = st.radio("", ["📋 תרחישים","💼 קנה/מכור","🐋 לווייתנים"],
                                           horizontal=True, key=f"cat_view_{_ch}",
