@@ -386,6 +386,12 @@ def fmt_vol(v):
     if v>=1_000: return f"${v/1_000:.0f}K"
     return f"${v:.0f}"
 
+# ── איפוס cache תרגום (מנקה כישלונות ישנים) ────────────────────────────────
+_TV = "v5"
+if st.session_state.get("_tv") != _TV:
+    st.session_state["_mob_trans"] = {}
+    st.session_state["_tv"] = _TV
+
 # ── זיכרון משתמש ─────────────────────────────────────────────────────────────
 
 if "wallet_user" not in st.session_state:
