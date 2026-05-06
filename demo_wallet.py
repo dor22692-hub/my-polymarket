@@ -370,12 +370,36 @@ def _fetch_live_price(market_id: str) -> tuple[float, float] | None:
     return (float(prices[0]), float(prices[1])) if len(prices) >= 2 else None
 
 
+def _fetch_gamma_price(market_id: str):
+    """מחיר מ-Gamma API כ-fallback לשווקים שנפתרו."""
+    try:
+        import urllib.request as _ur, json as _j2
+        for param in [f"conditionId={market_id}", f"slug={market_id}"]:
+            req = _ur.Request(
+                f"https://gamma-api.polymarket.com/markets?{param}",
+                headers={"User-Agent": "Mozilla/5.0"}
+            )
+            with _ur.urlopen(req, timeout=8) as r:
+                data = _j2.loads(r.read().decode())
+            if data:
+                m = data[0]
+                raw = m.get("outcomePrices", '["0.5","0.5"]')
+                prices = _j2.loads(raw) if isinstance(raw, str) else raw
+                if len(prices) >= 2:
+                    return float(prices[0]), float(prices[1])
+    except Exception:
+        pass
+    return None
+
+
 def sync_prices(username: str) -> dict[int, float]:
     positions = get_positions(username, "open")
     if not positions: return {}
     live = {}
     for mid in {p["market_id"] for p in positions}:
         r = _fetch_live_price(mid)
+        if not r:
+            r = _fetch_gamma_price(mid)  # fallback לשווקים שנפתרו
         if r: live[mid] = r
     changes = {}
     for p in positions:
@@ -383,7 +407,7 @@ def sync_prices(username: str) -> dict[int, float]:
         if mid not in live: continue
         yes_p, no_p = live[mid]
         new_price = yes_p if p["direction"]=="yes" else no_p
-        if new_price > 0:
+        if new_price >= 0:
             old = p["current_price"]
             if _use_cloud():
                 _sb_patch("demo_positions", {"id": p["id"]}, {"current_price": new_price})
@@ -399,14 +423,19 @@ def auto_resolve_positions(username: str) -> int:
     today = datetime.now(timezone.utc).date().isoformat()
     resolved = 0
     for p in get_positions(username, "open"):
-        ed = (p.get("end_date") or "").strip()[:10]
-        if not ed or ed > today: continue
         cp = p["current_price"]
         d  = p["direction"]
-        if   d=="yes" and cp>=0.95: close_position(p["id"],username,won=True);  resolved+=1
-        elif d=="yes" and cp<=0.05: close_position(p["id"],username,won=False); resolved+=1
-        elif d=="no"  and cp<=0.05: close_position(p["id"],username,won=True);  resolved+=1
-        elif d=="no"  and cp>=0.95: close_position(p["id"],username,won=False); resolved+=1
+        ed = (p.get("end_date") or "").strip()[:10]
+        # סגור אם המחיר הגיע לספי פתרון (גם לפני תאריך תפוגה)
+        if   d=="yes" and cp >= 0.90: close_position(p["id"],username,won=True);  resolved+=1
+        elif d=="yes" and cp <= 0.10: close_position(p["id"],username,won=False); resolved+=1
+        elif d=="no"  and cp <= 0.10: close_position(p["id"],username,won=True);  resolved+=1
+        elif d=="no"  and cp >= 0.90: close_position(p["id"],username,won=False); resolved+=1
+        # סגור גם אם תאריך תפוגה עבר (גם אם מחיר באמצע)
+        elif ed and ed < today:
+            won = (d=="yes" and cp > 0.5) or (d=="no" and cp < 0.5)
+            close_position(p["id"], username, won=won)
+            resolved += 1
     return resolved
 
 
