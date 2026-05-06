@@ -264,50 +264,42 @@ st.html("""
 
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
 
-def _t(text: str) -> str:
-    """תרגום טקסט בודד — ללא cache גלובלי כדי למנוע שמירת כישלונות."""
-    if not text:
-        return text
-    try:
-        payload = urllib.parse.urlencode({
-            "client": "gtx", "sl": "en", "tl": "iw", "dt": "t", "q": text
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://translate.googleapis.com/translate_a/single",
-            data=payload,
-            headers={"User-Agent": "Mozilla/5.0",
-                     "Content-Type": "application/x-www-form-urlencoded"},
-        )
-        with urllib.request.urlopen(req, timeout=8) as r:
-            data = json.loads(r.read().decode())
-        result = "".join(s[0] for s in data[0] if s[0])
-        return result if result else text
-    except Exception:
-        return text
-
-
+@st.cache_data(ttl=3600, show_spinner=False)
 def translate_batch(texts: tuple) -> dict:
-    """תרגום מקבילי — מהיר ואמין. שומר רק הצלחות ב-session_state."""
     if not texts:
         return {}
-    import concurrent.futures
+    SEP = " ||| "
     results = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
-        fmap = {ex.submit(_t, t): t for t in texts}
-        for f in concurrent.futures.as_completed(fmap):
-            orig = fmap[f]
-            try:
-                trans = f.result()
-                if trans and trans != orig:
-                    results[orig] = trans
-            except Exception:
-                pass
+    batch_size = 30
+    lst = list(texts)
+    for i in range(0, len(lst), batch_size):
+        batch = lst[i:i+batch_size]
+        try:
+            payload = urllib.parse.urlencode({
+                "client": "gtx", "sl": "en", "tl": "iw",
+                "dt": "t", "q": SEP.join(batch)
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://translate.googleapis.com/translate_a/single",
+                data=payload,
+                headers={"User-Agent": "Mozilla/5.0",
+                         "Content-Type": "application/x-www-form-urlencoded"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read().decode())
+            translated = "".join(s[0] for s in data[0] if s[0])
+            parts = translated.split(SEP)
+            if len(parts) == len(batch):
+                results.update(zip(batch, parts))
+            else:
+                for t in batch: results[t] = t
+        except Exception:
+            for t in batch: results[t] = t
     return results
 
 
 def tr(text: str) -> str:
-    if not text:
-        return text
+    if not text: return text
     return st.session_state.get("_mob_trans", {}).get(text, text)
 
 # ── נתונים ────────────────────────────────────────────────────────────────────
@@ -387,8 +379,9 @@ def fmt_vol(v):
     return f"${v:.0f}"
 
 # ── איפוס cache תרגום (מנקה כישלונות ישנים) ────────────────────────────────
-_TV = "v5"
+_TV = "v6"
 if st.session_state.get("_tv") != _TV:
+    st.cache_data.clear()          # מנקה גם @st.cache_data של translate_batch
     st.session_state["_mob_trans"] = {}
     st.session_state["_tv"] = _TV
 
