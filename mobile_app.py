@@ -264,43 +264,42 @@ st.html("""
 
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False)
+def _t(text: str) -> str:
+    """תרגום טקסט בודד — cache נפרד לכל טקסט, מונע שמירת כישלונות."""
+    if not text:
+        return text
+    try:
+        payload = urllib.parse.urlencode({
+            "client": "gtx", "sl": "en", "tl": "iw", "dt": "t", "q": text
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://translate.googleapis.com/translate_a/single",
+            data=payload,
+            headers={"User-Agent": "Mozilla/5.0",
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read().decode())
+        return "".join(s[0] for s in data[0] if s[0]) or text
+    except Exception:
+        return text
+
+
 def translate_batch(texts: tuple) -> dict:
-    if not texts:
-        return {}
-    SEP = " ||| "
-    results = {}
-    batch_size = 30
-    lst = list(texts)
-    for i in range(0, len(lst), batch_size):
-        batch = lst[i:i+batch_size]
-        try:
-            payload = urllib.parse.urlencode({
-                "client": "gtx", "sl": "en", "tl": "iw",
-                "dt": "t", "q": SEP.join(batch)
-            }).encode("utf-8")
-            req = urllib.request.Request(
-                "https://translate.googleapis.com/translate_a/single",
-                data=payload,
-                headers={"User-Agent": "Mozilla/5.0",
-                         "Content-Type": "application/x-www-form-urlencoded"},
-            )
-            with urllib.request.urlopen(req, timeout=10) as r:
-                data = json.loads(r.read().decode())
-            translated = "".join(s[0] for s in data[0] if s[0])
-            parts = translated.split(SEP)
-            if len(parts) == len(batch):
-                results.update(zip(batch, parts))
-            else:
-                for t in batch: results[t] = t
-        except Exception:
-            for t in batch: results[t] = t
-    return results
+    return {t: _t(t) for t in texts}
 
 
 def tr(text: str) -> str:
-    if not text: return text
-    return st.session_state.get("_mob_trans", {}).get(text, text)
+    if not text:
+        return text
+    cached = st.session_state.get("_mob_trans", {})
+    if text in cached:
+        return cached[text]
+    result = _t(text)
+    cached[text] = result
+    st.session_state["_mob_trans"] = cached
+    return result
 
 # ── נתונים ────────────────────────────────────────────────────────────────────
 
