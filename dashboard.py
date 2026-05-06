@@ -1024,7 +1024,15 @@ def ui_portfolio_page() -> None:
     # ── פוזיציות פתוחות ──────────────────────────────────────────────────────
     open_pos = dw.get_positions(username, "open")
     if open_pos:
-        st.markdown("### 🟢 פוזיציות פתוחות")
+        _pc1, _pc2 = st.columns([3, 1])
+        _pc1.markdown("### 🟢 פוזיציות פתוחות")
+        with _pc2:
+            if st.button("🔄 סנכרן + סגור שנפתרו", type="primary", key="port_sync", use_container_width=True):
+                with st.spinner("מסנכרן…"):
+                    dw.sync_prices(username)
+                    n = dw.auto_resolve_positions(username)
+                st.success(f"✅ {n} פוזיציות נסגרו" if n else "✅ סונכרן")
+                st.rerun()
         for p in open_pos:
             unreal = (p["current_price"] / p["entry_price"] - 1) * p["amount"] if p["entry_price"] > 0 else 0
             dir_label = "✅ YES" if p["direction"] == "yes" else "🔴 NO"

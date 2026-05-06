@@ -420,22 +420,22 @@ def sync_prices(username: str) -> dict[int, float]:
 
 
 def auto_resolve_positions(username: str) -> int:
+    """
+    cp = current_price = מחיר הטוקן שקנית (YES או NO).
+    cp קרוב ל-1.0 = הטוקן שלך שווה $1 = ניצחת.
+    cp קרוב ל-0.0 = הטוקן שלך שווה $0 = הפסדת.
+    """
     today = datetime.now(timezone.utc).date().isoformat()
     resolved = 0
     for p in get_positions(username, "open"):
         cp = p["current_price"]
-        d  = p["direction"]
         ed = (p.get("end_date") or "").strip()[:10]
-        # סגור אם המחיר הגיע לספי פתרון (גם לפני תאריך תפוגה)
-        if   d=="yes" and cp >= 0.90: close_position(p["id"],username,won=True);  resolved+=1
-        elif d=="yes" and cp <= 0.10: close_position(p["id"],username,won=False); resolved+=1
-        elif d=="no"  and cp <= 0.10: close_position(p["id"],username,won=True);  resolved+=1
-        elif d=="no"  and cp >= 0.90: close_position(p["id"],username,won=False); resolved+=1
-        # סגור גם אם תאריך תפוגה עבר (גם אם מחיר באמצע)
+        if cp >= 0.90:
+            close_position(p["id"], username, won=True);  resolved += 1
+        elif cp <= 0.10:
+            close_position(p["id"], username, won=False); resolved += 1
         elif ed and ed < today:
-            won = (d=="yes" and cp > 0.5) or (d=="no" and cp < 0.5)
-            close_position(p["id"], username, won=won)
-            resolved += 1
+            close_position(p["id"], username, won=(cp > 0.5)); resolved += 1
     return resolved
 
 
