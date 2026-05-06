@@ -655,7 +655,9 @@ if _page == "markets":
                     yes_p = m["prices"][0] if m["prices"] else 0.5
                     no_p  = max(0.0, 1-yes_p)
                     lbl   = tr(m["grp_lbl"])
-                    mid_slug = ev_slug or m["slug"]
+                    # market_id לסנכרון מחירים = market slug (ספציפי לשוק)
+                    # URL לפולימרקט = event slug (דף האירוע)
+                    trade_slug = m["slug"] or ev_slug
                     _mk = abs(hash(f"{ev_slug}_{m['grp_lbl']}"))
                     with st.expander(f"🎯 {lbl[:45]}  ({yes_p*100:.0f}%)", expanded=False):
                         st.caption(f"Yes {int(yes_p*100)}¢ → על $100 תקבל ${100/yes_p:.0f}  |  No {int(no_p*100)}¢ → ${100/no_p:.0f}")
@@ -665,14 +667,14 @@ if _page == "markets":
                         with c1:
                             if st.button(f"✅ Yes {int(yes_p*100)}¢", use_container_width=True,
                                         key=f"mob_by_{_mk}"):
-                                ok,msg = dw.open_position(username, mid_slug, m["title"],
+                                ok,msg = dw.open_position(username, trade_slug, m["title"],
                                     m["grp_lbl"], ev_title_raw, "yes", amt, yes_p, m.get("end",""))
                                 (st.success if ok else st.error)(msg)
                                 if ok: st.rerun()
                         with c2:
                             if st.button(f"🔴 No {int(no_p*100)}¢", use_container_width=True,
                                         key=f"mob_bn_{_mk}"):
-                                ok,msg = dw.open_position(username, mid_slug, m["title"],
+                                ok,msg = dw.open_position(username, trade_slug, m["title"],
                                     m["grp_lbl"], ev_title_raw, "no", amt, no_p, m.get("end",""))
                                 (st.success if ok else st.error)(msg)
                                 if ok: st.rerun()

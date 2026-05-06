@@ -365,9 +365,12 @@ def _fetch_live_price(market_id: str) -> tuple[float, float] | None:
         na = _best_ask(clob_ids[1])
         if ya and na:
             return ya, na
+    # Fallback — outcomePrices מ-Gamma (כולל שווקים שנפתרו)
     raw = market_data.get("outcomePrices","[]")
     prices = _j.loads(raw) if isinstance(raw,str) else raw
-    return (float(prices[0]), float(prices[1])) if len(prices) >= 2 else None
+    if len(prices) >= 2:
+        return (float(prices[0]), float(prices[1]))
+    return None
 
 
 def _fetch_gamma_price(market_id: str):
