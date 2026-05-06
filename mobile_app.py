@@ -120,13 +120,15 @@ st.html("""
     box-shadow: 0 0 0 2px rgba(26,115,232,0.2) !important;
   }
 
-  /* ── expanders — Material cards ── */
+  /* ── expanders — כרטיסי זכוכית שחורה ── */
   [data-testid="stExpander"] {
-    background: rgba(255,255,255,0.04) !important;
+    background: rgba(255,255,255,0.08) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
     border-radius: 18px !important;
-    border: 1px solid rgba(255,255,255,0.07) !important;
-    margin-bottom: 10px !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.25) !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    margin-bottom: 12px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08) !important;
   }
   [data-testid="stExpander"] > div:first-child,
   [data-testid="stExpander"] details {
@@ -135,10 +137,11 @@ st.html("""
   [data-testid="stExpander"] summary {
     background: transparent !important;
     font-size: 15px !important;
-    font-weight: 600 !important;
-    min-height: 52px !important;
+    font-weight: 700 !important;
+    min-height: 56px !important;
     padding: 0 16px !important;
     letter-spacing: 0.1px !important;
+    color: #f2f2f7 !important;
   }
 
   /* ── containers שקופים ── */
