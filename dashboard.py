@@ -102,6 +102,8 @@ DB_PATH = "polymarket.db"
 
 @st.cache_data(ttl=60, show_spinner=False)
 def load_markets() -> pd.DataFrame:
+    from datetime import date
+    today = date.today().isoformat()
     # נסה לטעון מ-Supabase (ענן)
     try:
         import urllib.request, urllib.parse
@@ -114,6 +116,7 @@ def load_markets() -> pd.DataFrame:
                 "order": "confidence.desc",
                 "limit": "600",
                 "volume": "gte.1000",
+                "end_date": f"gte.{today}",
             })
             req = urllib.request.Request(
                 f"{supa_url}/rest/v1/markets?{params}",
@@ -130,7 +133,7 @@ def load_markets() -> pd.DataFrame:
     try:
         conn = sqlite3.connect(DB_PATH)
         df = pd.read_sql_query(
-            "SELECT * FROM markets WHERE volume >= 1000 ORDER BY confidence DESC", conn
+            f"SELECT * FROM markets WHERE volume >= 1000 AND end_date >= '{today}' ORDER BY confidence DESC", conn
         )
         conn.close()
         return df

@@ -287,8 +287,10 @@ def tr(text: str) -> str:
 
 DB_PATH = "polymarket.db"
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def load_markets() -> pd.DataFrame:
+    from datetime import date
+    today = date.today().isoformat()
     # Supabase (ענן)
     try:
         import urllib.request, urllib.parse, json as _j
@@ -299,6 +301,7 @@ def load_markets() -> pd.DataFrame:
                 "select": "id,title,volume,confidence,yes_pct,no_pct,end_date,data",
                 "order": "confidence.desc", "limit": "600",
                 "volume": "gte.1000",
+                "end_date": f"gte.{today}",
             })
             req = urllib.request.Request(
                 f"{supa_url}/rest/v1/markets?{params}",
@@ -316,7 +319,7 @@ def load_markets() -> pd.DataFrame:
     try:
         conn = sqlite3.connect(DB_PATH)
         df = pd.read_sql_query(
-            "SELECT * FROM markets WHERE volume >= 1000 ORDER BY confidence DESC", conn
+            f"SELECT * FROM markets WHERE volume >= 1000 AND end_date >= '{today}' ORDER BY confidence DESC", conn
         )
         conn.close()
         return df
@@ -962,13 +965,15 @@ elif _page == "wallet":
                 st.warning("הכנס שם משתמש")
     else:
         username = st.session_state.wallet_user
-        # sync אוטומטי — פעם ב-5 דקות
+        # sync אוטומטי — פעם ב-3 דקות
         import time as _time
         _last = st.session_state.get("_last_sync", 0)
-        if _time.time() - _last > 300:
+        if _time.time() - _last > 180:
             with st.spinner("🔄 מסנכרן מחירים מ-Polymarket…"):
                 price_changes = dw.sync_prices(username)
+                dw.auto_resolve_positions(username)  # סוגר פוזיציות שפגו
             st.session_state["_last_sync"] = _time.time()
+            st.session_state.pop(f"_wc_{username}", None)  # מרענן יתרה
         else:
             price_changes = {}
         wallet = dw.get_or_create(username)
