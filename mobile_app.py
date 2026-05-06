@@ -264,62 +264,37 @@ st.html("""
 
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
 
-def _translate_one(text: str) -> str:
-    """תרגום טקסט בודד."""
-    try:
-        payload = urllib.parse.urlencode({
-            "client": "gtx", "sl": "en", "tl": "iw", "dt": "t", "q": text
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://translate.googleapis.com/translate_a/single",
-            data=payload,
-            headers={"User-Agent": "Mozilla/5.0",
-                     "Content-Type": "application/x-www-form-urlencoded"},
-        )
-        with urllib.request.urlopen(req, timeout=6) as r:
-            data = json.loads(r.read().decode())
-        result = "".join(s[0] for s in data[0] if s[0])
-        return result if result else text
-    except Exception:
-        return text
-
-# ללא @st.cache_data — המטמון הוא _mob_trans בסשן, רק תרגומים מוצלחים נשמרים
+@st.cache_data(ttl=3600, show_spinner=False)
 def translate_batch(texts: tuple) -> dict:
-    """מחזיר רק תרגומים מוצלחים (עברית שונה מהמקור)."""
     if not texts:
         return {}
+    SEP = " ||| "
     results = {}
-    SEP = "|||"
-    batch = list(texts)
-    try:
-        payload = urllib.parse.urlencode({
-            "client": "gtx", "sl": "en", "tl": "iw",
-            "dt": "t", "q": f" {SEP} ".join(batch)
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://translate.googleapis.com/translate_a/single",
-            data=payload,
-            headers={"User-Agent": "Mozilla/5.0",
-                     "Content-Type": "application/x-www-form-urlencoded"},
-        )
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.loads(r.read().decode())
-        translated = "".join(s[0] for s in data[0] if s[0])
-        parts = [p.strip() for p in translated.split(SEP)]
-        if len(parts) == len(batch):
-            for orig, trans in zip(batch, parts):
-                if trans and trans.strip() != orig.strip():
-                    results[orig] = trans
-            if len(results) >= len(batch) * 0.7:  # הצלחה חלקית מספיקה
-                return results
-    except Exception:
-        pass
-    # fallback — תרגום אחד-אחד עד 8 טקסטים
-    missing = [t for t in batch if t not in results]
-    for t in missing[:8]:
-        trans = _translate_one(t)
-        if trans and trans != t:
-            results[t] = trans
+    batch_size = 30
+    lst = list(texts)
+    for i in range(0, len(lst), batch_size):
+        batch = lst[i:i+batch_size]
+        try:
+            payload = urllib.parse.urlencode({
+                "client": "gtx", "sl": "en", "tl": "iw",
+                "dt": "t", "q": SEP.join(batch)
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://translate.googleapis.com/translate_a/single",
+                data=payload,
+                headers={"User-Agent": "Mozilla/5.0",
+                         "Content-Type": "application/x-www-form-urlencoded"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read().decode())
+            translated = "".join(s[0] for s in data[0] if s[0])
+            parts = translated.split(SEP)
+            if len(parts) == len(batch):
+                results.update(zip(batch, parts))
+            else:
+                for t in batch: results[t] = t
+        except Exception:
+            for t in batch: results[t] = t
     return results
 
 
@@ -402,13 +377,6 @@ def fmt_vol(v):
     if v>=1_000_000: return f"${v/1_000_000:.1f}M"
     if v>=1_000: return f"${v/1_000:.0f}K"
     return f"${v:.0f}"
-
-# ── ניקוי מטמון תרגום כושל ────────────────────────────────────────────────────
-# מסיר ערכים שנשמרו כ"תרגום" אבל הם בעצם האנגלית המקורית
-if "_mob_trans" in st.session_state:
-    _bad = [k for k, v in st.session_state["_mob_trans"].items() if k == v]
-    for _k in _bad:
-        del st.session_state["_mob_trans"][_k]
 
 # ── זיכרון משתמש ─────────────────────────────────────────────────────────────
 
@@ -546,8 +514,9 @@ if _page == "markets":
     _existing = st.session_state.get("_mob_trans", {})
     _new = tuple(t for t in _all_texts if t not in _existing)
     if _new:
-        _existing.update(translate_batch(_new[:20]))
-        st.session_state["_mob_trans"] = _existing
+        with st.spinner("מתרגם לעברית…"):
+            _existing.update(translate_batch(_new))
+            st.session_state["_mob_trans"] = _existing
 
     # קיבוץ לפי אירוע
     event_groups: dict[str, dict] = {}
@@ -794,8 +763,9 @@ elif _page == "expiring":
         _et_exist = st.session_state.get("_mob_trans", {})
         _et_new = tuple(t for t in exp_titles if t not in _et_exist)
         if _et_new:
-            _et_exist.update(translate_batch(_et_new[:15]))
-            st.session_state["_mob_trans"] = _et_exist
+            with st.spinner("מתרגם…"):
+                _et_exist.update(translate_batch(_et_new))
+                st.session_state["_mob_trans"] = _et_exist
 
         st.caption(f"נמצאו {len(expiring)} שווקים")
         bal = wallet_now.get("balance", 0) if wallet_now else 0
@@ -883,8 +853,9 @@ elif _page == "cats":
             _cat_ex = st.session_state.get("_mob_trans", {})
             _cat_new = tuple(t for t in _cat_texts if t not in _cat_ex)
             if _cat_new:
-                _cat_ex.update(translate_batch(_cat_new[:15]))
-                st.session_state["_mob_trans"] = _cat_ex
+                with st.spinner("מתרגם…"):
+                    _cat_ex.update(translate_batch(_cat_new))
+                    st.session_state["_mob_trans"] = _cat_ex
             st.caption(f"{len(_filt)} שווקים בקטגוריה {_cat}")
             _cat_bal = wallet_now.get("balance", 0) if wallet_now else 0
             for _, _crow in _filt.iterrows():
