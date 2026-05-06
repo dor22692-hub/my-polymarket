@@ -268,34 +268,15 @@ st.html("""
 def translate_batch(texts: tuple) -> dict:
     if not texts:
         return {}
-    SEP = " ||| "
-    results = {}
-    batch_size = 30
-    lst = list(texts)
-    for i in range(0, len(lst), batch_size):
-        batch = lst[i:i+batch_size]
-        try:
-            payload = urllib.parse.urlencode({
-                "client": "gtx", "sl": "en", "tl": "iw",
-                "dt": "t", "q": SEP.join(batch)
-            }).encode("utf-8")
-            req = urllib.request.Request(
-                "https://translate.googleapis.com/translate_a/single",
-                data=payload,
-                headers={"User-Agent": "Mozilla/5.0",
-                         "Content-Type": "application/x-www-form-urlencoded"},
-            )
-            with urllib.request.urlopen(req, timeout=10) as r:
-                data = json.loads(r.read().decode())
-            translated = "".join(s[0] for s in data[0] if s[0])
-            parts = translated.split(SEP)
-            if len(parts) == len(batch):
-                results.update(zip(batch, parts))
-            else:
-                for t in batch: results[t] = t
-        except Exception:
-            for t in batch: results[t] = t
-    return results
+    try:
+        from deep_translator import GoogleTranslator
+        lst = list(texts)
+        translated = GoogleTranslator(source="auto", target="iw").translate_batch(lst)
+        if translated and len(translated) == len(lst):
+            return {orig: (trans or orig) for orig, trans in zip(lst, translated)}
+    except Exception:
+        pass
+    return {}
 
 
 def tr(text: str) -> str:
@@ -379,9 +360,9 @@ def fmt_vol(v):
     return f"${v:.0f}"
 
 # ── איפוס cache תרגום (מנקה כישלונות ישנים) ────────────────────────────────
-_TV = "v6"
+_TV = "v7"
 if st.session_state.get("_tv") != _TV:
-    st.cache_data.clear()          # מנקה גם @st.cache_data של translate_batch
+    st.cache_data.clear()
     st.session_state["_mob_trans"] = {}
     st.session_state["_tv"] = _TV
 
