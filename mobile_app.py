@@ -1153,10 +1153,21 @@ elif _page == "wallet":
     </span>
   </div>
 </div>""")
-                if st.button(f"💰 מכור פוזיציה", key=f"mob_sell_{p['id']}", type="primary"):
-                    ok, msg = dw.sell_position(p["id"], username)
-                    (st.success if ok else st.error)(msg)
-                    if ok: st.rerun()
+                _mb1, _mb2, _mb3 = st.columns(3)
+                with _mb1:
+                    if st.button("💰 מכור", key=f"mob_sell_{p['id']}", use_container_width=True):
+                        ok, msg = dw.sell_position(p["id"], username)
+                        (st.success if ok else st.error)(msg)
+                        if ok: st.rerun()
+                with _mb2:
+                    if st.button("🏆 ניצחתי", key=f"mob_won_{p['id']}", type="primary", use_container_width=True):
+                        dw.close_position(p["id"], username, won=True)
+                        st.success("✅ ניצחון!")
+                        st.rerun()
+                with _mb3:
+                    if st.button("❌ הפסדתי", key=f"mob_lost_{p['id']}", use_container_width=True):
+                        dw.close_position(p["id"], username, won=False)
+                        st.rerun()
 
         # היסטוריה
         closed = [p for p in dw.get_positions(username) if p["status"]!="open"]

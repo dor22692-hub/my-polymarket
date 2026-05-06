@@ -1059,10 +1059,21 @@ def ui_portfolio_page() -> None:
   &nbsp;·&nbsp; <span style="color:#0a84ff;font-size:11px">🔄 Live Polymarket</span>
 </div>""")
                 st.caption(f"📅 תפוגה: {end_str}  |  אירוע: {p['event_title']}")
-                if st.button("💰 מכור פוזיציה", key=f"sell_{p['id']}", use_container_width=True):
-                    ok, msg = dw.sell_position(p["id"], username)
-                    (st.success if ok else st.error)(msg)
-                    if ok:
+                _bc1, _bc2, _bc3 = st.columns(3)
+                with _bc1:
+                    if st.button("💰 מכור", key=f"sell_{p['id']}", use_container_width=True):
+                        ok, msg = dw.sell_position(p["id"], username)
+                        (st.success if ok else st.error)(msg)
+                        if ok: st.rerun()
+                with _bc2:
+                    if st.button("🏆 ניצחתי", key=f"won_{p['id']}", use_container_width=True, type="primary"):
+                        dw.close_position(p["id"], username, won=True)
+                        st.success("✅ נסגר כניצחון!")
+                        st.rerun()
+                with _bc3:
+                    if st.button("❌ הפסדתי", key=f"lost_{p['id']}", use_container_width=True):
+                        dw.close_position(p["id"], username, won=False)
+                        st.error("הפוזיציה נסגרה כהפסד")
                         st.rerun()
     else:
         st.info("אין פוזיציות פתוחות כרגע")
