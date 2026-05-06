@@ -1803,7 +1803,7 @@ for ev_slug, ev in event_groups.items():
             if _wl_user:
                 _is_wl = dw.watchlist_has(_wl_user, ev_slug)
                 _wl_label = "⭐ במעקב" if _is_wl else "☆ מעקב"
-                if st.button(_wl_label, key=f"wl_{ev_slug[:15]}", use_container_width=True):
+                if st.button(_wl_label, key=f"wl_{abs(hash(ev_slug))}", use_container_width=True):
                     if _is_wl:
                         dw.watchlist_remove(_wl_user, ev_slug)
                     else:
