@@ -287,11 +287,64 @@ def tr(text: str) -> str:
 
 DB_PATH = "polymarket.db"
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _fetch_gamma_live() -> pd.DataFrame:
+    """מחירים חיים ישירות מ-Gamma API — מדויק ועדכני."""
+    from datetime import date as _date
+    today = _date.today().isoformat()
+    try:
+        rows, seen = [], set()
+        for _p in [
+            {"closed":"false","active":"true","limit":400,"order":"volume","ascending":"false"},
+            {"closed":"false","active":"true","limit":150,"order":"startDate","ascending":"false"},
+        ]:
+            r = requests.get("https://gamma-api.polymarket.com/markets", params=_p, timeout=15)
+            if not r.ok: continue
+            for m in r.json():
+                mid = m.get("conditionId") or m.get("id","")
+                if not mid or mid in seen: continue
+                end = (m.get("endDate","") or "")[:10]
+                if end and end < today: continue
+                pr = m.get("outcomePrices",'["0.5","0.5"]')
+                prices = json.loads(pr) if isinstance(pr, str) else pr
+                yes_p = float(prices[0]) if prices else 0.5
+                vol = float(m.get("volume",0) or 0)
+                if vol < 1000: continue
+                seen.add(mid)
+                evs = m.get("events") or [{}]
+                rows.append({
+                    "id": mid,
+                    "title": m.get("question",""),
+                    "volume": vol,
+                    "yes_pct": round(yes_p*100,1),
+                    "no_pct": round((1-yes_p)*100,1),
+                    "confidence": round(min(vol/1_000_000,1.0)*60 + (1-abs(yes_p-0.5)*2)*40, 1),
+                    "end_date": end,
+                    "data": json.dumps({
+                        "slug": m.get("slug",""),
+                        "event_slug": evs[0].get("slug",""),
+                        "event_title": evs[0].get("title",""),
+                        "group_label": m.get("groupItemTitle","") or m.get("question",""),
+                        "price": prices,
+                        "volume": vol,
+                        "vol_24h": float(m.get("volume24hr",0) or 0),
+                    }, ensure_ascii=False),
+                })
+        if rows:
+            return pd.DataFrame(rows)
+    except Exception:
+        pass
+    return pd.DataFrame()
+
 @st.cache_data(ttl=30, show_spinner=False)
 def load_markets() -> pd.DataFrame:
     from datetime import date
     today = date.today().isoformat()
-    # Supabase (ענן)
+    # 1. מחירים חיים מ-Gamma API
+    df = _fetch_gamma_live()
+    if not df.empty:
+        return df
+    # 2. Fallback — Supabase
     try:
         import urllib.request, urllib.parse, json as _j
         supa_url = st.secrets.get("SUPABASE_URL", "") or ""
@@ -300,13 +353,11 @@ def load_markets() -> pd.DataFrame:
             params = urllib.parse.urlencode({
                 "select": "id,title,volume,confidence,yes_pct,no_pct,end_date,data",
                 "order": "confidence.desc", "limit": "600",
-                "volume": "gte.1000",
-                "end_date": f"gte.{today}",
+                "volume": "gte.1000", "end_date": f"gte.{today}",
             })
             req = urllib.request.Request(
                 f"{supa_url}/rest/v1/markets?{params}",
-                headers={"apikey": supa_key,
-                         "Authorization": f"Bearer {supa_key}",
+                headers={"apikey": supa_key, "Authorization": f"Bearer {supa_key}",
                          "Accept": "application/json"}
             )
             with urllib.request.urlopen(req, timeout=10) as r:
@@ -315,14 +366,13 @@ def load_markets() -> pd.DataFrame:
                 return pd.DataFrame(rows)
     except Exception:
         pass
-    # Fallback — SQLite מקומי
+    # 3. Fallback — SQLite מקומי
     try:
         conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query(
-            f"SELECT * FROM markets WHERE volume >= 1000 AND end_date >= '{today}' ORDER BY confidence DESC", conn
-        )
+        df2 = pd.read_sql_query(
+            f"SELECT * FROM markets WHERE volume>=1000 AND end_date>='{today}' ORDER BY confidence DESC", conn)
         conn.close()
-        return df
+        return df2
     except Exception:
         return pd.DataFrame()
 
