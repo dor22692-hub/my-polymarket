@@ -917,6 +917,12 @@ elif _page == "cats":
                     _ch       = abs(hash(_cslug or _ctitle))
                     _cpoly    = f"https://polymarket.com/event/{_cev_slug}" if _cev_slug else "#"
                     with st.expander(f"{_ctitle[:52]}  │  {_cyes*100:.0f}%  │  {fmt_vol(_cvol)}", expanded=False):
+                        st.html(f"""
+<a href="{_cpoly}" target="_blank" style="display:flex;align-items:center;justify-content:center;
+   gap:8px;background:#0a84ff;color:#fff;font-weight:700;font-size:14px;
+   padding:10px;border-radius:12px;text-decoration:none;margin-bottom:10px;direction:rtl">
+  🔗 פתח בפולימרקט
+</a>""")
                         _cview = st.radio("", ["📋 תרחישים","💼 קנה/מכור","🐋 לווייתנים"],
                                           horizontal=True, key=f"cat_view_{_ch}",
                                           label_visibility="collapsed")
