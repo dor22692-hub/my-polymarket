@@ -100,19 +100,20 @@ DB_PATH = "polymarket.db"
 
 # ── עזרי נתונים ──────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def _fetch_gamma_live() -> pd.DataFrame:
     """מחירים חיים ישירות מ-Gamma API."""
     import requests as _req
     from datetime import date as _date
     today = _date.today().isoformat()
+    _h = {"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"}
     try:
         rows, seen = [], set()
         for _p in [
             {"closed":"false","active":"true","limit":400,"order":"volume","ascending":"false"},
             {"closed":"false","active":"true","limit":150,"order":"startDate","ascending":"false"},
         ]:
-            r = _req.get("https://gamma-api.polymarket.com/markets", params=_p, timeout=15)
+            r = _req.get("https://gamma-api.polymarket.com/markets", params=_p, headers=_h, timeout=15)
             if not r.ok: continue
             for m in r.json():
                 mid = m.get("conditionId") or m.get("id","")
