@@ -52,7 +52,7 @@ def _sb(method: str, table: str, params: dict = None,
     data = _j.dumps(body).encode() if body is not None else None
     req  = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=8) as r:
+        with urllib.request.urlopen(req, timeout=5) as r:
             txt = r.read().decode()
             return _j.loads(txt) if txt.strip() else []
     except Exception:
@@ -217,17 +217,22 @@ def open_position(username, market_id, market_title, group_label, event_title,
 
     potential_win = amount / entry_price
     now = datetime.now(timezone.utc).isoformat()
+    new_balance = round(w["balance"] - amount, 4)
 
     if _use_cloud():
-        _sb_patch("demo_wallets", {"username": username}, {"balance": w["balance"] - amount})
-        _sb_post("demo_positions", {
+        import concurrent.futures
+        pos_body = {
             "username": username, "market_id": market_id,
             "market_title": market_title, "group_label": group_label,
             "event_title": event_title, "direction": direction,
             "amount": amount, "entry_price": entry_price,
             "current_price": entry_price, "potential_win": potential_win,
             "timestamp": now, "status": "open", "pnl": 0.0, "end_date": end_date
-        })
+        }
+        # הרץ עדכון יתרה ופתיחת פוזיציה במקביל
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+            ex.submit(_sb_patch, "demo_wallets", {"username": username}, {"balance": new_balance})
+            ex.submit(_sb_post, "demo_positions", pos_body)
     else:
         with _conn() as c:
             _add_balance(username, -amount, c)
@@ -237,6 +242,16 @@ def open_position(username, market_id, market_title, group_label, event_title,
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,'open',0,?)""",
                 (username, market_id, market_title, group_label, event_title,
                  direction, amount, entry_price, entry_price, potential_win, now, end_date))
+
+    # עדכון מיידי של session state — ללא קריאה חוזרת ל-Supabase
+    try:
+        import streamlit as st
+        _wkey = f"_wc_{username}"
+        if _wkey in st.session_state and st.session_state[_wkey]:
+            st.session_state[_wkey]["balance"] = new_balance
+    except Exception:
+        pass
+
     return True, f"✅ קנית {direction.upper()} על '{group_label}' ב-${amount:.2f}"
 
 
@@ -262,9 +277,19 @@ def close_position(pos_id: int, username: str, won: bool) -> tuple[bool, str]:
     new_cp = 1.0 if won else 0.0
     status = "won" if won else "lost"
     if _use_cloud():
-        _sb_patch("demo_positions", {"id": pos_id}, {"status": status, "pnl": pnl, "current_price": new_cp})
+        import concurrent.futures
         w = get_wallet(username)
-        _sb_patch("demo_wallets", {"username": username}, {"balance": w["balance"] + refund})
+        new_bal = round((w["balance"] if w else 0) + refund, 4)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+            ex.submit(_sb_patch, "demo_positions", {"id": pos_id}, {"status": status, "pnl": pnl, "current_price": new_cp})
+            ex.submit(_sb_patch, "demo_wallets", {"username": username}, {"balance": new_bal})
+        try:
+            import streamlit as st
+            _wkey = f"_wc_{username}"
+            if _wkey in st.session_state and st.session_state[_wkey]:
+                st.session_state[_wkey]["balance"] = new_bal
+        except Exception:
+            pass
     else:
         with _conn() as c:
             c.execute("UPDATE demo_positions SET status=?,pnl=?,current_price=? WHERE id=?",
@@ -283,9 +308,19 @@ def sell_position(pos_id: int, username: str) -> tuple[bool, str]:
     won  = pnl > 0
     status = "won" if won else "lost"
     if _use_cloud():
-        _sb_patch("demo_positions", {"id": pos_id}, {"status": status, "pnl": pnl, "current_price": cp})
+        import concurrent.futures
         w = get_wallet(username)
-        _sb_patch("demo_wallets", {"username": username}, {"balance": w["balance"] + proceeds})
+        new_bal = round((w["balance"] if w else 0) + proceeds, 4)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
+            ex.submit(_sb_patch, "demo_positions", {"id": pos_id}, {"status": status, "pnl": pnl, "current_price": cp})
+            ex.submit(_sb_patch, "demo_wallets", {"username": username}, {"balance": new_bal})
+        try:
+            import streamlit as st
+            _wkey = f"_wc_{username}"
+            if _wkey in st.session_state and st.session_state[_wkey]:
+                st.session_state[_wkey]["balance"] = new_bal
+        except Exception:
+            pass
     else:
         with _conn() as c:
             c.execute("UPDATE demo_positions SET status=?,pnl=?,current_price=? WHERE id=?",
