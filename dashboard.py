@@ -13,7 +13,7 @@ import streamlit as st
 import demo_wallet as dw
 import arbitrage_scanner as arb
 
-dw.init_tables()h
+dw.init_tables()
 
 # ── תרגום (deep-translator — batch מובנה) ────────────────────────────────────
 
