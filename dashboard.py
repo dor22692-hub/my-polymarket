@@ -834,6 +834,103 @@ def ui_trade_tab(ev_slug: str, ev_title: str, markets: list[dict]) -> None:
                         st.rerun()
 
 
+def ui_categories_page() -> None:
+    """עמוד קטגוריות — סינון שווקים לפי נושא."""
+    st.markdown("## 🏷️ קטגוריות שווקים")
+
+    CATS = {
+        "⚽ ספורט":  ["nfl","nba","mlb","nhl","soccer","football","basketball","tennis","sport","game","championship","league","cup","olympics","match","season"],
+        "₿ קריפטו": ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token","altcoin"],
+        "📈 בורסה":  ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap","treasury"],
+        "🇮🇱 ישראל": ["israel","hamas","netanyahu","idf","gaza","hezbollah","iran","tel aviv","west bank","knesset"],
+    }
+
+    cols = st.columns(len(CATS))
+    _cat = st.session_state.get("_dash_cat", list(CATS.keys())[0])
+    for i, (cname, col) in enumerate(zip(CATS.keys(), cols)):
+        with col:
+            if st.button(cname, key=f"dcat_{i}",
+                         type="primary" if _cat == cname else "secondary",
+                         use_container_width=True):
+                st.session_state["_dash_cat"] = cname
+                _cat = cname
+
+    st.divider()
+
+    df = load_markets()
+    if df.empty:
+        st.warning("אין נתונים זמינים")
+        return
+
+    kw = CATS.get(_cat, [])
+    pattern = "|".join(kw)
+    filt = df[df["title"].str.lower().str.contains(pattern, na=False)].copy() if kw else df.copy()
+
+    if filt.empty:
+        st.info(f"לא נמצאו שווקים בקטגוריה {_cat}")
+        return
+
+    st.caption(f"{len(filt)} שווקים בקטגוריה {_cat}")
+
+    username = st.session_state.get("wallet_user", "")
+    mt = maybe_translate
+
+    for _, row in filt.head(60).iterrows():
+        try:
+            title    = mt(str(row.get("title","")))
+            yes_p    = float(row.get("yes_pct", 50)) / 100
+            no_p     = max(0.0, 1 - yes_p)
+            vol      = float(row.get("volume", 0))
+            end_date = str(row.get("end_date",""))[:10]
+            m_data   = json.loads(row.get("data","{}") or "{}")
+            slug     = m_data.get("slug","") or str(row.get("id",""))
+            ev_slug  = m_data.get("event_slug","") or slug
+            poly_url = f"https://polymarket.com/event/{ev_slug}" if ev_slug else "#"
+            with st.expander(f"{title[:80]}  │  {yes_p*100:.0f}%  │  ${vol/1000:.0f}K", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Yes", f"{yes_p*100:.1f}%")
+                c2.metric("No", f"{no_p*100:.1f}%")
+                c3.metric("נפח", f"${vol/1000:.0f}K")
+
+                btn_c1, btn_c2 = st.columns([3, 1])
+                with btn_c1:
+                    st.link_button("🔗 פתח בפולימרקט", poly_url, use_container_width=True)
+                with btn_c2:
+                    if username:
+                        is_wl = dw.watchlist_has(username, ev_slug or slug)
+                        if st.button("⭐" if is_wl else "☆",
+                                     key=f"catwl_{abs(hash(slug))}", use_container_width=True):
+                            if is_wl: dw.watchlist_remove(username, ev_slug or slug)
+                            else:     dw.watchlist_add(username, ev_slug or slug, str(row.get("title","")))
+                            st.rerun()
+
+                if username:
+                    w = dw.get_or_create(username)
+                    bal = w["balance"] if w else 0
+                    amt = st.number_input("סכום לקנייה ($)", 1.0, float(max(1,bal)),
+                                          min(50.0, float(max(1,bal))), 10.0,
+                                          key=f"catamt_{abs(hash(slug))}")
+                    tc1, tc2 = st.columns(2)
+                    with tc1:
+                        if st.button(f"✅ Yes {yes_p*100:.0f}¢", key=f"catby_{abs(hash(slug))}",
+                                     use_container_width=True, type="primary"):
+                            ok, msg = dw.open_position(username, slug, str(row.get("title","")),
+                                str(row.get("title","")), str(row.get("title","")),
+                                "yes", amt, yes_p, end_date)
+                            (st.success if ok else st.error)(msg)
+                            if ok: st.rerun()
+                    with tc2:
+                        if st.button(f"🔴 No {no_p*100:.0f}¢", key=f"catbn_{abs(hash(slug))}",
+                                     use_container_width=True):
+                            ok, msg = dw.open_position(username, slug, str(row.get("title","")),
+                                str(row.get("title","")), str(row.get("title","")),
+                                "no", amt, no_p, end_date)
+                            (st.success if ok else st.error)(msg)
+                            if ok: st.rerun()
+        except Exception:
+            continue
+
+
 def ui_watchlist_page() -> None:
     """עמוד רשימת מעקב — שווקים מסומנים + פוזיציות פתוחות."""
     username = st.session_state.get("wallet_user", "")
@@ -1422,7 +1519,7 @@ with st.sidebar:
     st.markdown("### 🗂 ניווט")
     page = st.radio(
         "עמוד",
-        ["📊 שווקים", "💼 הפורטפוליו שלי", "⏰ פגים בקרוב", "🎯 ארביטראז'", "⭐ מעקב"],
+        ["📊 שווקים", "🏷️ קטגוריות", "💼 הפורטפוליו שלי", "⏰ פגים בקרוב", "🎯 ארביטראז'", "⭐ מעקב"],
         label_visibility="collapsed",
     )
     st.session_state["_page"] = page
@@ -1486,6 +1583,10 @@ with st.sidebar:
     st.caption(f"⏱ עודכן: {datetime.utcnow().strftime('%H:%M')} UTC")
 
 # ── ניווט בין עמודים ─────────────────────────────────────────────────────────
+
+if st.session_state.get("_page") == "🏷️ קטגוריות":
+    ui_categories_page()
+    st.stop()
 
 if st.session_state.get("_page") == "💼 הפורטפוליו שלי":
     ui_portfolio_page()
