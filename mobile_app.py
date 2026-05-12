@@ -267,7 +267,7 @@ st.html("""
 
 # ── תרגום אוטומטי ────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def translate_batch(texts: tuple) -> dict:
     if not texts:
         return {}
@@ -290,7 +290,7 @@ def tr(text: str) -> str:
 
 DB_PATH = "polymarket.db"
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def _fetch_gamma_live() -> pd.DataFrame:
     """מחירים חיים ישירות מ-Gamma API — מדויק ועדכני."""
     from datetime import date as _date
@@ -341,7 +341,7 @@ def _fetch_gamma_live() -> pd.DataFrame:
         pass
     return pd.DataFrame()
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def load_markets() -> pd.DataFrame:
     from datetime import date
     today = date.today().isoformat()
@@ -381,7 +381,7 @@ def load_markets() -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
-@st.cache_data(ttl=90, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def fetch_expiring(days: int) -> list[dict]:
     try:
         cutoff  = (datetime.now(timezone.utc)+timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
