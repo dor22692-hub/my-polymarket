@@ -1199,6 +1199,17 @@ elif _page == "wallet":
     </span>
   </div>
 </div>""")
+                # כפתור פולימרקט — עם cache בסשן
+                _purl_key = f"_purl_{p['market_id']}"
+                if _purl_key not in st.session_state:
+                    st.session_state[_purl_key] = dw.get_poly_url(p.get("market_id",""))
+                _p_poly = st.session_state[_purl_key]
+                st.html(f"""<a href="{_p_poly}" target="_blank"
+  style="display:block;text-align:center;background:#0a84ff;color:#fff;
+         font-weight:700;font-size:13px;padding:9px;border-radius:12px;
+         text-decoration:none;margin-bottom:8px;direction:rtl">
+  🔗 פתח בפולימרקט
+</a>""")
                 _mb1, _mb2, _mb3 = st.columns(3)
                 with _mb1:
                     if st.button("💰 מכור", key=f"mob_sell_{p['id']}", use_container_width=True):
@@ -1341,7 +1352,10 @@ elif _page == "watch":
                 unreal = (p["current_price"]/p["entry_price"]-1)*p["amount"] if p["entry_price"]>0 else 0
                 uc = "#30d158" if unreal>=0 else "#ff453a"
                 dir_l = "✅ YES" if p["direction"]=="yes" else "🔴 NO"
-                poly_u = f"https://polymarket.com/event/{p['market_id']}" if p.get("market_id") else "#"
+                _wk = f"_purl_{p['market_id']}"
+                if _wk not in st.session_state:
+                    st.session_state[_wk] = dw.get_poly_url(p.get("market_id",""))
+                poly_u = st.session_state[_wk]
                 st.html(f"""
 <div style="background:#1a1d24;border-radius:14px;padding:14px;margin-bottom:8px;direction:rtl">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -1352,7 +1366,7 @@ elif _page == "watch":
     <span>השקעה: ${p['amount']:.2f}</span>
     <span>כניסה: {p['entry_price']*100:.0f}¢</span>
     <span>עכשיו: {p['current_price']*100:.0f}¢</span>
-    <a href="{poly_u}" target="_blank" style="color:#1a73e8;text-decoration:none;margin-right:auto">↗</a>
+    <a href="{poly_u}" target="_blank" style="color:#1a73e8;text-decoration:none;margin-right:auto">🔗 פולימרקט</a>
   </div>
 </div>""")
 

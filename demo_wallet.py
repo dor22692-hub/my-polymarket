@@ -563,3 +563,26 @@ def watchlist_has(username: str, slug: str) -> bool:
     with _conn() as c:
         return bool(c.execute("SELECT 1 FROM watchlist WHERE username=? AND market_slug=?",
                                (username, slug)).fetchone())
+
+
+def get_poly_url(market_id: str) -> str:
+    """מחזיר URL תקין לפולימרקט לפי market_id — מחפש ב-Gamma API."""
+    if not market_id:
+        return "#"
+    import urllib.request as _ur, json as _j2
+    base = "https://gamma-api.polymarket.com/markets"
+    for param in [f"slug={market_id}", f"conditionIds={market_id}", f"id={market_id}"]:
+        try:
+            req = _ur.Request(f"{base}?{param}", headers={"User-Agent": "Mozilla/5.0"})
+            with _ur.urlopen(req, timeout=5) as r:
+                data = _j2.loads(r.read().decode())
+            if data:
+                m = data[0] if isinstance(data, list) else data
+                evs = m.get("events") or []
+                ev_slug = evs[0].get("slug", "") if evs else ""
+                mslug = m.get("slug", "")
+                slug = ev_slug or mslug or market_id
+                return f"https://polymarket.com/event/{slug}"
+        except Exception:
+            continue
+    return f"https://polymarket.com/event/{market_id}"
