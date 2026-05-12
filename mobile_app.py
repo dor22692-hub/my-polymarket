@@ -511,9 +511,29 @@ _nav_html = "".join([
 ])
 st.html(f'<div class="bottom-nav">{_nav_html}</div>')
 
+# ── רענון אוטומטי כל 60 שניות ────────────────────────────────────────────────
+import time as _time
+_now = _time.time()
+_last_rf = st.session_state.get("_last_rf", 0)
+if _now - _last_rf > 60:
+    st.cache_data.clear()
+    st.session_state["_last_rf"] = _now
+
+# כפתור רענון ידני
 if st.button("🔄 רענן נתונים", key="mob_rf", use_container_width=True):
     st.cache_data.clear()
+    st.session_state["_last_rf"] = _time.time()
     st.rerun()
+
+# טריגר אוטומטי כל 60 שניות דרך JavaScript
+st.html("""
+<script>
+setTimeout(function(){
+  var btns = window.parent.document.querySelectorAll('button');
+  for(var b of btns){ if(b.innerText.includes('רענן')){ b.click(); break; } }
+}, 60000);
+</script>
+""")
 
 # ════════════════════════════════════════════════════════
 # 📊 שווקים
