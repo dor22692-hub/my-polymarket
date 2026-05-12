@@ -951,7 +951,11 @@ def ui_watchlist_page() -> None:
             dir_l = "✅ YES" if p["direction"] == "yes" else "🔴 NO"
             chg = (p["current_price"] / p["entry_price"] - 1) * 100 if p["entry_price"] > 0 else 0
             chg_icon = "📈" if chg > 0 else ("📉" if chg < 0 else "➡️")
-            poly_url = dw.get_poly_url(p.get("market_id", ""))
+            _pmid = p.get("market_id", "")
+            try:
+                poly_url = dw.get_poly_url(_pmid)
+            except Exception:
+                poly_url = f"https://polymarket.com/event/{_pmid}" if _pmid else "#"
 
             st.html(f"""
 <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);

@@ -1202,7 +1202,11 @@ elif _page == "wallet":
                 # כפתור פולימרקט — עם cache בסשן
                 _purl_key = f"_purl_{p['market_id']}"
                 if _purl_key not in st.session_state:
-                    st.session_state[_purl_key] = dw.get_poly_url(p.get("market_id",""))
+                    _mid = p.get("market_id","")
+                    try:
+                        st.session_state[_purl_key] = dw.get_poly_url(_mid)
+                    except Exception:
+                        st.session_state[_purl_key] = f"https://polymarket.com/event/{_mid}" if _mid else "#"
                 _p_poly = st.session_state[_purl_key]
                 st.html(f"""<a href="{_p_poly}" target="_blank"
   style="display:block;text-align:center;background:#0a84ff;color:#fff;
