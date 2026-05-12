@@ -13,11 +13,11 @@ import streamlit as st
 import demo_wallet as dw
 import arbitrage_scanner as arb
 
-dw.init_tables()
+dw.init_tables()h
 
 # ── תרגום (deep-translator — batch מובנה) ────────────────────────────────────
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def _batch_translate_api(texts_tuple: tuple) -> dict:
     """מתרגם כל הכותרות בבת אחת עם deep-translator."""
     if not texts_tuple:
@@ -100,7 +100,7 @@ DB_PATH = "polymarket.db"
 
 # ── עזרי נתונים ──────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def _fetch_gamma_live() -> pd.DataFrame:
     """מחירים חיים ישירות מ-Gamma API."""
     import requests as _req
@@ -149,7 +149,7 @@ def _fetch_gamma_live() -> pd.DataFrame:
         pass
     return pd.DataFrame()
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def load_markets() -> pd.DataFrame:
     from datetime import date
     today = date.today().isoformat()
@@ -191,7 +191,7 @@ def load_markets() -> pd.DataFrame:
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=0, show_spinner=False)
 def fetch_expiring_soon(days: int = 20) -> dict:
     """מביא מ-Gamma API שווקים שפגים ב-X ימים, מקובצים לפי אירוע."""
     import requests
@@ -1514,7 +1514,7 @@ df = df_raw.copy()
 
 # ── חיפוש חי מ-Polymarket API ────────────────────────────────────────────────
 if search and live_search:
-    @st.cache_data(ttl=300, show_spinner=False)
+    @st.cache_data(ttl=0, show_spinner=False)
     def _translate_to_english(text: str) -> str:
         """מתרגם טקסט עברי לאנגלית לצורך חיפוש ב-API."""
         try:
@@ -1535,7 +1535,7 @@ if search and live_search:
         except Exception:
             return text
 
-    @st.cache_data(ttl=60, show_spinner=False)
+    @st.cache_data(ttl=0, show_spinner=False)
     def _live_search(q: str) -> list[dict]:
         """מחפש דרך events endpoint — מביא כל האירועים ומוצא תוצאות מדויקות."""
         import requests as _req
