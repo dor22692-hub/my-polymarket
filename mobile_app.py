@@ -1358,7 +1358,11 @@ elif _page == "watch":
                 dir_l = "✅ YES" if p["direction"]=="yes" else "🔴 NO"
                 _wk = f"_purl_{p['market_id']}"
                 if _wk not in st.session_state:
-                    st.session_state[_wk] = dw.get_poly_url(p.get("market_id",""))
+                    _mid2 = p.get("market_id","")
+                    try:
+                        st.session_state[_wk] = dw.get_poly_url(_mid2)
+                    except Exception:
+                        st.session_state[_wk] = f"https://polymarket.com/event/{_mid2}" if _mid2 else "#"
                 poly_u = st.session_state[_wk]
                 st.html(f"""
 <div style="background:#1a1d24;border-radius:14px;padding:14px;margin-bottom:8px;direction:rtl">
