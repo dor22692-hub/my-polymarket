@@ -417,11 +417,10 @@ def fmt_vol(v):
     if v>=1_000: return f"${v/1_000:.0f}K"
     return f"${v:.0f}"
 
-# ── איפוס cache תרגום (מנקה כישלונות ישנים) ────────────────────────────────
+# ── איפוס cache תרגום בלבד (לא נוגע ב-Gamma cache) ─────────────────────────
 _TV = "v7"
 if st.session_state.get("_tv") != _TV:
-    st.cache_data.clear()
-    st.session_state["_mob_trans"] = {}
+    st.session_state["_mob_trans"] = {}   # מנקה רק תרגומים כושלים
     st.session_state["_tv"] = _TV
 
 # ── זיכרון משתמש ─────────────────────────────────────────────────────────────
@@ -511,29 +510,10 @@ _nav_html = "".join([
 ])
 st.html(f'<div class="bottom-nav">{_nav_html}</div>')
 
-# ── רענון אוטומטי כל 60 שניות ────────────────────────────────────────────────
-import time as _time
-_now = _time.time()
-_last_rf = st.session_state.get("_last_rf", 0)
-if _now - _last_rf > 60:
-    st.cache_data.clear()
-    st.session_state["_last_rf"] = _now
-
-# כפתור רענון ידני
+# ── כפתור רענון ידני (TTL=60s מטפל בעדכון אוטומטי) ──────────────────────────
 if st.button("🔄 רענן נתונים", key="mob_rf", use_container_width=True):
-    st.cache_data.clear()
-    st.session_state["_last_rf"] = _time.time()
+    _fetch_gamma_live.clear()
     st.rerun()
-
-# טריגר אוטומטי כל 60 שניות דרך JavaScript
-st.html("""
-<script>
-setTimeout(function(){
-  var btns = window.parent.document.querySelectorAll('button');
-  for(var b of btns){ if(b.innerText.includes('רענן')){ b.click(); break; } }
-}, 60000);
-</script>
-""")
 
 # ════════════════════════════════════════════════════════
 # 📊 שווקים
