@@ -310,11 +310,14 @@ def _fetch_gamma_live() -> pd.DataFrame:
                 if not mid or mid in seen: continue
                 end = (m.get("endDate","") or "")[:10]
                 if end and end < today: continue
+                if m.get("closed") or m.get("resolved"): continue
                 pr = m.get("outcomePrices",'["0.5","0.5"]')
                 prices = json.loads(pr) if isinstance(pr, str) else pr
                 yes_p = float(prices[0]) if prices else 0.5
                 vol = float(m.get("volume",0) or 0)
                 if vol < 1000: continue
+                # סנן שווקים שנפתרו (מחיר ב-98%+ = סיים)
+                if yes_p >= 0.98 or yes_p <= 0.02: continue
                 seen.add(mid)
                 evs = m.get("events") or [{}]
                 rows.append({
@@ -872,10 +875,10 @@ elif _page == "cats":
   <div style="color:#636366;font-size:12px;margin-top:4px">בחר קטגוריה לסינון שווקים</div>
 </div>""")
     CATS = {
-        "⚽ ספורט":   ["nfl","nba","mlb","nhl","soccer","football","basketball","tennis","sport","game","championship","league","cup","olympics","match","season"],
-        "₿ קריפטו":  ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token","altcoin"],
-        "📈 בורסה":   ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap","treasury"],
-        "🇮🇱 ישראל":  ["israel","hamas","netanyahu","idf","gaza","hezbollah","iran","tel aviv","west bank","knesset"],
+        "⚽ ספורט":   ["nfl","nba","mlb","nhl","ncaa","ufc","mma","f1","formula","soccer","football","basketball","baseball","hockey","tennis","golf","sport","game","championship","league","cup","playoffs","finals","season","match","winner","score","team","vs","beats","win","lose"],
+        "₿ קריפטו":  ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token","altcoin","binance","usdc","cardano","avalanche","polygon","matic","pepe","shib"],
+        "📈 בורסה":   ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap","treasury","inflation","rate cut","powell","tariff","trade"],
+        "🇮🇱 ישראל":  ["israel","hamas","netanyahu","idf","gaza","hezbollah","iran","tel aviv","west bank","knesset","ceasefire","hostage","october 7"],
     }
     _cat = st.session_state.get("_mob_cat", list(CATS.keys())[0])
     _cat_cols = st.columns(len(CATS))
@@ -893,7 +896,9 @@ elif _page == "cats":
     else:
         _kw = CATS.get(_cat, [])
         _pattern = "|".join(_kw)
-        _filt = df_cat[df_cat["title"].str.lower().str.contains(_pattern, na=False)].head(40) if _kw else df_cat.head(40)
+        _filt = df_cat[df_cat["title"].str.lower().str.contains(_pattern, na=False)] if _kw else df_cat
+        # סנן שווקים שנפתרו (מחיר קיצוני = לא רלוונטי)
+        _filt = _filt[(_filt["yes_pct"] < 98) & (_filt["yes_pct"] > 2)].head(40)
         if _filt.empty:
             st.info(f"לא נמצאו שווקים בקטגוריה {_cat}")
         else:

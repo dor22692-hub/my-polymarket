@@ -120,11 +120,13 @@ def _fetch_gamma_live() -> pd.DataFrame:
                 if not mid or mid in seen: continue
                 end = (m.get("endDate","") or "")[:10]
                 if end and end < today: continue
+                if m.get("closed") or m.get("resolved"): continue
                 pr = m.get("outcomePrices",'["0.5","0.5"]')
                 prices = json.loads(pr) if isinstance(pr,str) else pr
                 yes_p = float(prices[0]) if prices else 0.5
                 vol = float(m.get("volume",0) or 0)
                 if vol < 1000: continue
+                if yes_p >= 0.98 or yes_p <= 0.02: continue
                 seen.add(mid)
                 evs = m.get("events") or [{}]
                 rows.append({
@@ -839,10 +841,10 @@ def ui_categories_page() -> None:
     st.markdown("## 🏷️ קטגוריות שווקים")
 
     CATS = {
-        "⚽ ספורט":  ["nfl","nba","mlb","nhl","soccer","football","basketball","tennis","sport","game","championship","league","cup","olympics","match","season"],
-        "₿ קריפטו": ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token","altcoin"],
-        "📈 בורסה":  ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap","treasury"],
-        "🇮🇱 ישראל": ["israel","hamas","netanyahu","idf","gaza","hezbollah","iran","tel aviv","west bank","knesset"],
+        "⚽ ספורט":  ["nfl","nba","mlb","nhl","ncaa","ufc","mma","f1","formula","soccer","football","basketball","baseball","hockey","tennis","golf","sport","game","championship","league","cup","playoffs","finals","season","match","winner","score","team","vs","beats","win","lose"],
+        "₿ קריפטו": ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token","altcoin","binance","cardano","avalanche","polygon","pepe"],
+        "📈 בורסה":  ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap","treasury","inflation","rate cut","powell","tariff","trade"],
+        "🇮🇱 ישראל": ["israel","hamas","netanyahu","idf","gaza","hezbollah","iran","tel aviv","west bank","knesset","ceasefire","hostage","october 7"],
     }
 
     cols = st.columns(len(CATS))
@@ -865,6 +867,7 @@ def ui_categories_page() -> None:
     kw = CATS.get(_cat, [])
     pattern = "|".join(kw)
     filt = df[df["title"].str.lower().str.contains(pattern, na=False)].copy() if kw else df.copy()
+    filt = filt[(filt["yes_pct"] < 98) & (filt["yes_pct"] > 2)]
 
     if filt.empty:
         st.info(f"לא נמצאו שווקים בקטגוריה {_cat}")
