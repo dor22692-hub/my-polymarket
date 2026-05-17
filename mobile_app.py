@@ -874,7 +874,13 @@ elif _page == "cats":
   <div style="font-size:20px;font-weight:800">🏷️ קטגוריות</div>
   <div style="color:#636366;font-size:12px;margin-top:4px">בחר קטגוריה לסינון שווקים</div>
 </div>""")
+    import calendar as _cal
+    _today_cat = datetime.now(timezone.utc).date()
+    _last_day  = _today_cat.replace(day=_cal.monthrange(_today_cat.year, _today_cat.month)[1])
+    _end_month = _last_day.isoformat()
+
     CATS = {
+        "📅 החודש הקרוב": "__month__",
         "⚽ ספורט":   ["nfl","nba","mlb","nhl","ncaa","ufc","mma","f1","formula","soccer","football","basketball","baseball","hockey","tennis","golf","sport","game","championship","league","cup","playoffs","finals","season","match","winner","score","team","vs","beats","win","lose"],
         "₿ קריפטו":  ["bitcoin","btc","ethereum","eth","crypto","solana","sol","coinbase","dogecoin","doge","xrp","defi","blockchain","token","altcoin","binance","usdc","cardano","avalanche","polygon","matic","pepe","shib"],
         "📈 בורסה":   ["stock","nasdaq","s&p","dow","fed","interest rate","gdp","recession","economy","wall street","sp500","ipo","market cap","treasury","inflation","rate cut","powell","tariff","trade"],
@@ -895,9 +901,13 @@ elif _page == "cats":
         st.warning("אין נתונים זמינים")
     else:
         _kw = CATS.get(_cat, [])
-        _pattern = "|".join(_kw)
-        _filt = df_cat[df_cat["title"].str.lower().str.contains(_pattern, na=False)] if _kw else df_cat
-        # סנן שווקים שנפתרו (מחיר קיצוני = לא רלוונטי)
+        if _kw == "__month__":
+            _filt = df_cat[df_cat["end_date"].fillna("9999-12-31").str[:10] <= _end_month]
+        elif _kw:
+            _pattern = "|".join(_kw)
+            _filt = df_cat[df_cat["title"].str.lower().str.contains(_pattern, na=False)]
+        else:
+            _filt = df_cat
         _filt = _filt[(_filt["yes_pct"] < 98) & (_filt["yes_pct"] > 2)].head(40)
         if _filt.empty:
             st.info(f"לא נמצאו שווקים בקטגוריה {_cat}")
@@ -1136,13 +1146,10 @@ elif _page == "wallet":
                 dir_l  = "✅ YES" if p["direction"]=="yes" else "🔴 NO"
                 uc     = "#30d158" if unreal>=0 else "#ff453a"
                 end_s  = (p.get("end_date",""))[:10] or "—"
-
-                st.html(f"""
+                _exp_header = f"{dir_l} · {p['group_label'][:35]}  |  {unreal:+.0f}$"
+                with st.expander(_exp_header, expanded=False):
+                    st.html(f"""
 <div style="background:#1a1d24;border-radius:16px;padding:16px;margin-bottom:10px;direction:rtl">
-  <div style="font-size:13px;font-weight:700;color:#f2f2f7;margin-bottom:10px">
-    {dir_l} · {p['group_label'][:45]}
-  </div>
-  <!-- מדדי פוזיציה -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
     <div style="background:#22252e;border-radius:10px;padding:10px;text-align:center">
       <div style="color:#636366;font-size:10px">השקעה</div>
@@ -1157,63 +1164,48 @@ elif _page == "wallet":
       <div style="font-weight:800;font-size:15px;color:{uc}">${unreal:+.2f}</div>
     </div>
   </div>
-  <!-- מחירי קנייה נוכחיים -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-    <div style="background:#0d3320;border:1px solid rgba(48,209,88,0.3);
-                border-radius:12px;padding:10px;text-align:center">
-      <div style="color:#636366;font-size:10px;margin-bottom:3px">Buy Yes</div>
-      <div style="color:#30d158;font-weight:800;font-size:18px">{int(round(p['current_price']*100))}¢</div>
-      <div style="color:#636366;font-size:10px;margin-top:2px">
-        {'▲' if p['current_price'] > p['entry_price'] else ('▼' if p['current_price'] < p['entry_price'] else '—')}
-        כניסה: {int(round(p['entry_price']*100))}¢
-      </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+    <div style="background:#0d3320;border-radius:10px;padding:10px;text-align:center">
+      <div style="color:#636366;font-size:10px">מחיר כניסה</div>
+      <div style="color:#30d158;font-weight:800;font-size:16px">{int(round(p['entry_price']*100))}¢</div>
     </div>
-    <div style="background:#1f0a0d;border:1px solid rgba(255,69,58,0.3);
-                border-radius:12px;padding:10px;text-align:center">
-      <div style="color:#636366;font-size:10px;margin-bottom:3px">Buy No</div>
-      <div style="color:#ff453a;font-weight:800;font-size:18px">{int(round(max(0,1-p['current_price'])*100))}¢</div>
-      <div style="color:#636366;font-size:10px;margin-top:2px">
-        תשואה: +{((1/p['current_price']-1)*100):.0f}% על Yes
+    <div style="background:#22252e;border-radius:10px;padding:10px;text-align:center">
+      <div style="color:#636366;font-size:10px">מחיר נוכחי</div>
+      <div style="color:{uc};font-weight:800;font-size:16px">{int(round(p['current_price']*100))}¢
+        {'▲' if p['current_price'] > p['entry_price'] else '▼' if p['current_price'] < p['entry_price'] else '—'}
       </div>
     </div>
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <span style="color:#636366;font-size:11px">📅 תפוגה: {end_s}</span>
-    <span style="color:{uc};font-size:12px;font-weight:700">
-      {'📈' if unreal >= 0 else '📉'} {((p['current_price']/p['entry_price']-1)*100):+.1f}%
-    </span>
-  </div>
+  <div style="color:#636366;font-size:11px;text-align:right">📅 תפוגה: {end_s}</div>
 </div>""")
-                # כפתור פולימרקט — עם cache בסשן
-                _purl_key = f"_purl_{p['market_id']}"
-                if _purl_key not in st.session_state:
-                    _mid = p.get("market_id","")
-                    try:
-                        st.session_state[_purl_key] = dw.get_poly_url(_mid)
-                    except Exception:
-                        st.session_state[_purl_key] = f"https://polymarket.com/event/{_mid}" if _mid else "#"
-                _p_poly = st.session_state[_purl_key]
-                st.html(f"""<a href="{_p_poly}" target="_blank"
+                    _purl_key = f"_purl_{p['market_id']}"
+                    if _purl_key not in st.session_state:
+                        _mid = p.get("market_id","")
+                        try:
+                            st.session_state[_purl_key] = dw.get_poly_url(_mid)
+                        except Exception:
+                            st.session_state[_purl_key] = f"https://polymarket.com/event/{_mid}" if _mid else "#"
+                    _p_poly = st.session_state[_purl_key]
+                    st.html(f"""<a href="{_p_poly}" target="_blank"
   style="display:block;text-align:center;background:#0a84ff;color:#fff;
          font-weight:700;font-size:13px;padding:9px;border-radius:12px;
          text-decoration:none;margin-bottom:8px;direction:rtl">
-  🔗 פתח בפולימרקט
-</a>""")
-                _mb1, _mb2, _mb3 = st.columns(3)
-                with _mb1:
-                    if st.button("💰 מכור", key=f"mob_sell_{p['id']}", use_container_width=True):
-                        ok, msg = dw.sell_position(p["id"], username)
-                        (st.success if ok else st.error)(msg)
-                        if ok: st.rerun()
-                with _mb2:
-                    if st.button("🏆 ניצחתי", key=f"mob_won_{p['id']}", type="primary", use_container_width=True):
-                        dw.close_position(p["id"], username, won=True)
-                        st.success("✅ ניצחון!")
-                        st.rerun()
-                with _mb3:
-                    if st.button("❌ הפסדתי", key=f"mob_lost_{p['id']}", use_container_width=True):
-                        dw.close_position(p["id"], username, won=False)
-                        st.rerun()
+  🔗 פתח בפולימרקט</a>""")
+                    _mb1, _mb2, _mb3 = st.columns(3)
+                    with _mb1:
+                        if st.button("💰 מכור", key=f"mob_sell_{p['id']}", use_container_width=True):
+                            ok, msg = dw.sell_position(p["id"], username)
+                            (st.success if ok else st.error)(msg)
+                            if ok: st.rerun()
+                    with _mb2:
+                        if st.button("🏆 ניצחתי", key=f"mob_won_{p['id']}", type="primary", use_container_width=True):
+                            dw.close_position(p["id"], username, won=True)
+                            st.success("✅ ניצחון!")
+                            st.rerun()
+                    with _mb3:
+                        if st.button("❌ הפסדתי", key=f"mob_lost_{p['id']}", use_container_width=True):
+                            dw.close_position(p["id"], username, won=False)
+                            st.rerun()
 
         # היסטוריה
         closed = [p for p in dw.get_positions(username) if p["status"]!="open"]
