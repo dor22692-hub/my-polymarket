@@ -902,13 +902,55 @@ elif _page == "cats":
     else:
         _kw = CATS.get(_cat, [])
         if _kw == "__month__":
-            _filt = df_cat[df_cat["end_date"].fillna("9999-12-31").str[:10] <= _end_month]
+            # קריאה ישירה ל-Gamma API עם פילטר תאריך — מביאה הרבה יותר שווקים
+            @st.cache_data(ttl=120, show_spinner=False)
+            def _fetch_month_markets(end_of_month: str) -> pd.DataFrame:
+                from datetime import date as _d, timezone as _tz, datetime as _dt
+                now_str = _dt.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                try:
+                    r = requests.get("https://gamma-api.polymarket.com/markets", params={
+                        "active": "true", "closed": "false",
+                        "end_date_min": now_str,
+                        "end_date_max": f"{end_of_month}T23:59:59Z",
+                        "limit": 300, "order": "volume", "ascending": "false"
+                    }, timeout=15)
+                    if not r.ok: return pd.DataFrame()
+                    rows = []
+                    for m in r.json():
+                        pr = m.get("outcomePrices", '["0.5","0.5"]')
+                        prices = json.loads(pr) if isinstance(pr, str) else pr
+                        yes_p = float(prices[0]) if prices else 0.5
+                        if yes_p >= 0.98 or yes_p <= 0.02: continue
+                        if m.get("closed") or m.get("resolved"): continue
+                        vol = float(m.get("volume", 0) or 0)
+                        evs = m.get("events") or [{}]
+                        rows.append({
+                            "title": m.get("question", ""),
+                            "yes_pct": round(yes_p * 100, 1),
+                            "no_pct": round((1 - yes_p) * 100, 1),
+                            "volume": vol,
+                            "end_date": (m.get("endDate", "") or "")[:10],
+                            "data": json.dumps({
+                                "slug": m.get("slug", ""),
+                                "event_slug": evs[0].get("slug", ""),
+                                "event_title": evs[0].get("title", ""),
+                                "group_label": m.get("groupItemTitle", "") or m.get("question", ""),
+                                "price": prices, "volume": vol,
+                            }, ensure_ascii=False),
+                        })
+                    return pd.DataFrame(rows) if rows else pd.DataFrame()
+                except Exception:
+                    return pd.DataFrame()
+
+            _month_df = _fetch_month_markets(_end_month)
+            _filt = _month_df if not _month_df.empty else df_cat[
+                df_cat["end_date"].fillna("9999-12-31").str[:10] <= _end_month]
         elif _kw:
             _pattern = "|".join(_kw)
             _filt = df_cat[df_cat["title"].str.lower().str.contains(_pattern, na=False)]
         else:
             _filt = df_cat
-        _filt = _filt[(_filt["yes_pct"] < 98) & (_filt["yes_pct"] > 2)].head(40)
+        _filt = _filt[(_filt["yes_pct"] < 98) & (_filt["yes_pct"] > 2)].head(60)
         if _filt.empty:
             st.info(f"לא נמצאו שווקים בקטגוריה {_cat}")
         else:
